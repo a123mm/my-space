@@ -93,6 +93,23 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
 .theme-chips{display:flex;flex-wrap:wrap;gap:8px}
 .theme-chip{padding:8px 14px;font-size:13px;font-family:inherit;font-weight:600;border:1px solid rgba(255,255,255,.2);border-radius:20px;background:rgba(255,255,255,.06);color:#cbd5e1;cursor:pointer}
 .theme-chip.active{background:#6366f1;color:#fff;border-color:#6366f1}
+/* 贪吃蛇 */
+#snakeBoard{display:grid;grid-template-columns:repeat(15,1fr);gap:2px;max-width:320px;margin:12px auto;aspect-ratio:1;background:rgba(255,255,255,.05);border-radius:12px;padding:6px;user-select:none}
+.snake-cell{background:rgba(255,255,255,.05);border-radius:3px}
+.snake-cell.snake{background:#4ade80}
+.snake-cell.head{background:#22c55e;border-radius:50%}
+.snake-cell.food{background:#f87171;border-radius:50%}
+.dpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:180px;margin:10px auto}
+.dpad button{padding:12px;font-size:18px;border:none;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
+.dpad button:active{background:#6366f1}
+/* 扫雷 */
+#mineBoard{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;max-width:320px;margin:12px auto;aspect-ratio:1;background:rgba(255,255,255,.05);border-radius:12px;padding:6px;user-select:none}
+.mine-cell{background:rgba(255,255,255,.12);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;cursor:pointer;color:#fff}
+.mine-cell.revealed{background:rgba(255,255,255,.03);cursor:default;color:#cbd5e1}
+.mine-cell.flagged{background:rgba(250,204,21,.2);color:#facc15}
+.mine-cell.mine{background:#dc2626}
+.mine-cell.count-1{color:#60a5fa}.mine-cell.count-2{color:#4ade80}.mine-cell.count-3{color:#f87171}.mine-cell.count-4{color:#a855f7}
+.mine-cell.count-5{color:#f97316}.mine-cell.count-6{color:#06b6d4}.mine-cell.count-7{color:#ec4899}.mine-cell.count-8{color:#ef4444}
 </style>
 </head>
 <body>
@@ -320,6 +337,39 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
     </div>
   </section>
 
+  <!-- 贪吃蛇 -->
+  <section id="snakePage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card" style="text-align:center">
+      <div class="info" id="snakeInfo">得分：0　最高：0</div>
+      <div id="snakeBoard"></div>
+      <div class="dpad">
+        <div></div><button onclick="snakeDir('up')">↑</button><div></div>
+        <button onclick="snakeDir('left')">←</button>
+        <button onclick="snakeDir('down')">↓</button>
+        <button onclick="snakeDir('right')">→</button>
+      </div>
+      <button class="btn" onclick="initSnake()">重新开始</button>
+      <div id="snakeMsg" class="msg"></div>
+      <div class="info" style="font-size:12px">电脑端用方向键，手机端滑动屏幕或点方向键</div>
+    </div>
+  </section>
+
+  <!-- 扫雷 -->
+  <section id="minePage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card" style="text-align:center">
+      <div class="info" id="mineInfo">剩余雷数：10</div>
+      <div id="mineBoard"></div>
+      <div class="chips" style="margin-top:12px">
+        <button class="chip active" id="mineModeBtn" onclick="toggleMineMode()">🖱️ 翻开模式</button>
+      </div>
+      <button class="btn" onclick="initMine()">重新开始</button>
+      <div id="mineMsg" class="msg"></div>
+      <div class="info" style="font-size:12px">点击翻开，切到“插旗模式”点格子标记</div>
+    </div>
+  </section>
+
 </div>
 
 <script>
@@ -485,7 +535,9 @@ const GAMES = [
   { id: 'mem',   icon: '🃏', name: '记忆翻牌', desc: '越少步越高分' },
   { id: 'ttt',   icon: '⭕', name: '井字棋', desc: '累计胜场' },
   { id: 'mole',  icon: '🐹', name: '打地鼠', desc: '最高得分' },
-  { id: 'game2048', icon: '🔢', name: '2048', desc: '合并数字最高分' }
+  { id: 'game2048', icon: '🔢', name: '2048', desc: '合并数字最高分' },
+  { id: 'snake', icon: '🐍', name: '贪吃蛇', desc: '吃食物最高分' },
+  { id: 'mine', icon: '💣', name: '扫雷', desc: '胜利越快分越高' }
 ];
 
 function openGames() {
@@ -520,6 +572,8 @@ function openGame(id) {
   if (id === 'mole') resetMole();
   if (id === 'game2048') init2048();
   if (id === 'rps') updateRPSScore();
+  if (id === 'snake') initSnake();
+  if (id === 'mine') initMine();
 }
 
 /* ================= 排行榜 ================= */
@@ -1071,6 +1125,238 @@ document.getElementById('g2048Board').addEventListener('touchend', e => {
     if (Math.abs(dy) > 30) move2048(dy > 0 ? 'down' : 'up');
   }
 }, { passive: true });
+
+/* ================= 贪吃蛇 ================= */
+const SNAKE_SIZE = 15;
+let snake = [], snakeDirObj = { x: 1, y: 0 }, snakeFood = {}, snakeScore = 0, snakeBest = 0, snakeTimer = null, snakePlaying = false;
+let snakeTouchStartX = 0, snakeTouchStartY = 0;
+
+function initSnake() {
+  clearInterval(snakeTimer);
+  snake = [{ x: 7, y: 7 }, { x: 6, y: 7 }, { x: 5, y: 7 }];
+  snakeDirObj = { x: 1, y: 0 };
+  snakeScore = 0;
+  snakePlaying = true;
+  spawnSnakeFood();
+  renderSnake();
+  setMsg('snakeMsg', '开始！', '');
+  document.getElementById('snakeInfo').textContent = `得分：${snakeScore}　最高：${snakeBest}`;
+  
+  snakeTimer = setInterval(() => {
+    if (!snakePlaying) return;
+    const head = { x: snake[0].x + snakeDirObj.x, y: snake[0].y + snakeDirObj.y };
+    
+    // 撞墙
+    if (head.x < 0 || head.x >= SNAKE_SIZE || head.y < 0 || head.y >= SNAKE_SIZE) {
+      endSnake();
+      return;
+    }
+    // 撞自己
+    if (snake.some(s => s.x === head.x && s.y === head.y)) {
+      endSnake();
+      return;
+    }
+    
+    snake.unshift(head);
+    if (head.x === snakeFood.x && head.y === snakeFood.y) {
+      snakeScore += 10;
+      if (snakeScore > snakeBest) snakeBest = snakeScore;
+      spawnSnakeFood();
+    } else {
+      snake.pop();
+    }
+    renderSnake();
+    document.getElementById('snakeInfo').textContent = `得分：${snakeScore}　最高：${snakeBest}`;
+  }, 150);
+}
+
+function spawnSnakeFood() {
+  let pos;
+  do {
+    pos = { x: Math.floor(Math.random() * SNAKE_SIZE), y: Math.floor(Math.random() * SNAKE_SIZE) };
+  } while (snake.some(s => s.x === pos.x && s.y === pos.y));
+  snakeFood = pos;
+}
+
+function renderSnake() {
+  const board = document.getElementById('snakeBoard');
+  let html = '';
+  for (let y = 0; y < SNAKE_SIZE; y++) {
+    for (let x = 0; x < SNAKE_SIZE; x++) {
+      const isHead = snake[0].x === x && snake[0].y === y;
+      const isBody = snake.some(s => s.x === x && s.y === y);
+      const isFood = snakeFood.x === x && snakeFood.y === y;
+      let cls = 'snake-cell';
+      if (isHead) cls += ' head';
+      else if (isBody) cls += ' snake';
+      else if (isFood) cls += ' food';
+      html += `<div class="${cls}"></div>`;
+    }
+  }
+  board.innerHTML = html;
+}
+
+function snakeDir(dir) {
+  if (!snakePlaying) return;
+  const dirs = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
+  const d = dirs[dir];
+  // 不能反向
+  if (d.x === -snakeDirObj.x && d.y === -snakeDirObj.y) return;
+  snakeDirObj = d;
+}
+
+function endSnake() {
+  snakePlaying = false;
+  clearInterval(snakeTimer);
+  setMsg('snakeMsg', `😵 游戏结束！得分 ${snakeScore}`, 'high');
+  if (snakeScore > 0) reportScore('snake', snakeScore);
+}
+
+document.getElementById('snakeBoard').addEventListener('touchstart', e => {
+  snakeTouchStartX = e.touches[0].clientX; snakeTouchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+document.getElementById('snakeBoard').addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - snakeTouchStartX;
+  const dy = e.changedTouches[0].clientY - snakeTouchStartY;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (Math.abs(dx) > 30) snakeDir(dx > 0 ? 'right' : 'left');
+  } else {
+    if (Math.abs(dy) > 30) snakeDir(dy > 0 ? 'down' : 'up');
+  }
+}, { passive: true });
+
+/* ================= 扫雷 ================= */
+const MINE_SIZE = 9;
+const MINE_COUNT = 10;
+let mineBoard = [], mineRevealedCount = 0, mineFlags = 0, minePlaying = false, mineMode = 'reveal';
+
+function initMine() {
+  minePlaying = true;
+  mineRevealedCount = 0;
+  mineFlags = 0;
+  mineMode = 'reveal';
+  document.getElementById('mineModeBtn').textContent = '🖱️ 翻开模式';
+  document.getElementById('mineModeBtn').classList.add('active');
+  
+  // 初始化空板
+  mineBoard = Array(MINE_SIZE).fill(0).map(() => Array(MINE_SIZE).fill(0).map(() => ({ mine: false, revealed: false, flagged: false, count: 0 })));
+  
+  // 布雷
+  let placed = 0;
+  while (placed < MINE_COUNT) {
+    const r = Math.floor(Math.random() * MINE_SIZE);
+    const c = Math.floor(Math.random() * MINE_SIZE);
+    if (!mineBoard[r][c].mine) {
+      mineBoard[r][c].mine = true;
+      placed++;
+    }
+  }
+  
+  // 计算周围雷数
+  for (let r = 0; r < MINE_SIZE; r++) {
+    for (let c = 0; c < MINE_SIZE; c++) {
+      if (mineBoard[r][c].mine) continue;
+      let count = 0;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < MINE_SIZE && nc >= 0 && nc < MINE_SIZE && mineBoard[nr][nc].mine) count++;
+        }
+      }
+      mineBoard[r][c].count = count;
+    }
+  }
+  
+  renderMine();
+  setMsg('mineMsg', '开始！点击翻开格子', '');
+  document.getElementById('mineInfo').textContent = `剩余雷数：${MINE_COUNT - mineFlags}`;
+}
+
+function renderMine() {
+  const board = document.getElementById('mineBoard');
+  let html = '';
+  for (let r = 0; r < MINE_SIZE; r++) {
+    for (let c = 0; c < MINE_SIZE; c++) {
+      const cell = mineBoard[r][c];
+      let cls = 'mine-cell';
+      let content = '';
+      if (cell.revealed) {
+        cls += ' revealed';
+        if (cell.mine) { cls += ' mine'; content = '💣'; }
+        else if (cell.count > 0) { cls += ' count-' + cell.count; content = cell.count; }
+      } else if (cell.flagged) {
+        cls += ' flagged'; content = '🚩';
+      }
+      html += `<div class="${cls}" onclick="clickMine(${r},${c})">${content}</div>`;
+    }
+  }
+  board.innerHTML = html;
+}
+
+function toggleMineMode() {
+  mineMode = mineMode === 'reveal' ? 'flag' : 'reveal';
+  const btn = document.getElementById('mineModeBtn');
+  if (mineMode === 'flag') {
+    btn.textContent = '🚩 插旗模式';
+    btn.classList.add('active');
+  } else {
+    btn.textContent = '🖱️ 翻开模式';
+    btn.classList.remove('active');
+  }
+}
+
+function clickMine(r, c) {
+  if (!minePlaying) return;
+  const cell = mineBoard[r][c];
+  if (cell.revealed || cell.flagged) return;
+  
+  if (mineMode === 'flag') {
+    cell.flagged = true;
+    mineFlags++;
+    document.getElementById('mineInfo').textContent = `剩余雷数：${MINE_COUNT - mineFlags}`;
+    renderMine();
+    checkMineWin();
+    return;
+  }
+  
+  if (cell.mine) {
+    cell.revealed = true;
+    renderMine();
+    minePlaying = false;
+    setMsg('mineMsg', '💥 踩到雷了！游戏结束', 'high');
+    return;
+  }
+  
+  revealMineCell(r, c);
+  renderMine();
+  checkMineWin();
+}
+
+function revealMineCell(r, c) {
+  if (r < 0 || r >= MINE_SIZE || c < 0 || c >= MINE_SIZE) return;
+  const cell = mineBoard[r][c];
+  if (cell.revealed || cell.flagged || cell.mine) return;
+  
+  cell.revealed = true;
+  mineRevealedCount++;
+  
+  if (cell.count === 0) {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        revealMineCell(r + dr, c + dc);
+      }
+    }
+  }
+}
+
+function checkMineWin() {
+  if (mineRevealedCount === MINE_SIZE * MINE_SIZE - MINE_COUNT) {
+    minePlaying = false;
+    setMsg('mineMsg', '🎉 恭喜你，排雷成功！', 'win');
+    reportScore('mine', 1000);
+  }
+}
 
 /* ================= 工具 ================= */
 function setMsg(id, text, cls) {
