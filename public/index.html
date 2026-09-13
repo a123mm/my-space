@@ -6,7 +6,7 @@
 <title>我的空间</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;min-height:100vh;padding:16px;font-family:system-ui,-apple-system,"PingFang SC",sans-serif;background:linear-gradient(160deg,#0f172a,#1e1b4b 50%,#312e81);background-attachment:fixed;color:#e2e8f0;display:flex;justify-content:center}
+body{margin:0;min-height:100vh;padding:16px;font-family:system-ui,-apple-system,"PingFang SC",sans-serif;background:linear-gradient(135deg,#0f172a,#1e1b4b 50%,#312e81);background-attachment:fixed;color:#e2e8f0;display:flex;justify-content:center}
 .app{width:100%;max-width:420px}
 .screen{display:none}
 .screen.active{display:block;animation:fadeUp .3s ease}
@@ -82,7 +82,7 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
 .hole{aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 50% 70%,#3f2a12,#1a1008);border:2px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:36px;cursor:pointer;user-select:none;overflow:hidden;position:relative}
 .hole.mole::after{content:"🐹";position:absolute;animation:pop .15s ease-out}
 @keyframes pop{from{transform:translateY(60%) scale(.5);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
-.tip{font-size:11px;opacity:.4;text-align:center;margin-top:16px;line-height:1.6}
+#g2048Board{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:320px;margin:12px auto;background:rgba(255,255,255,.1);padding:10px;border-radius:12px;aspect-ratio:1;user-select:none}
 .board-row{display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:13px}
 .board-row.me{border-color:#6366f1;background:rgba(99,102,241,.12)}
 .board-rank{font-size:18px;font-weight:700;min-width:36px;text-align:center}
@@ -90,6 +90,9 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
 .board-name{font-weight:600;font-size:14px}
 .board-sub{font-size:11px;opacity:.5}
 .board-score{font-weight:700;color:#4ade80;font-size:16px}
+.theme-chips{display:flex;flex-wrap:wrap;gap:8px}
+.theme-chip{padding:8px 14px;font-size:13px;font-family:inherit;font-weight:600;border:1px solid rgba(255,255,255,.2);border-radius:20px;background:rgba(255,255,255,.06);color:#cbd5e1;cursor:pointer}
+.theme-chip.active{background:#6366f1;color:#fff;border-color:#6366f1}
 </style>
 </head>
 <body>
@@ -121,7 +124,7 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
         <div class="err" id="authErr"></div>
         <button class="btn" type="submit" id="authBtn">登录</button>
       </form>
-      <div class="tip">密码用 pbkdf2 加密，数据存服务器 Cloudflare D1 数据库</div>
+      <div class="tip" style="font-size:11px;opacity:.4;text-align:center;margin-top:16px;line-height:1.6">密码用 pbkdf2 加密，数据存 Cloudflare D1 数据库</div>
     </div>
   </section>
 
@@ -132,7 +135,7 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
       <button class="btn-logout" onclick="logout()">退出</button>
     </div>
     <div class="profile-card">
-      <div class="cover"></div>
+      <div class="cover" id="pCover"></div>
       <div class="avatar" id="pAvatar">🐱</div>
       <div class="pname" id="pName">...</div>
       <div class="pmeta" id="pMeta"></div>
@@ -146,6 +149,10 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
     <div class="card">
       <div class="card-title">😀 换个头像</div>
       <div class="avatars" id="avatarPicker"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🎨 主页主题色</div>
+      <div class="theme-chips" id="themePicker"></div>
     </div>
     <div class="card">
       <div class="card-title">📊 我的数据</div>
@@ -276,6 +283,18 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
     </div>
   </section>
 
+  <!-- 2048 -->
+  <section id="game2048Page" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card" style="text-align:center">
+      <div class="info" id="g2048Info">最高分：0　当前分：0</div>
+      <div id="g2048Board"></div>
+      <button class="btn" onclick="init2048()">重新开始</button>
+      <div id="g2048Msg" class="msg"></div>
+      <div class="info" style="font-size:12px">电脑端用方向键，手机端用手指滑动屏幕</div>
+    </div>
+  </section>
+
 </div>
 
 <script>
@@ -298,6 +317,30 @@ function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   window.scrollTo(0, 0);
+}
+
+/* ================= 主题 ================= */
+const THEMES = {
+  '默认紫': 'linear-gradient(135deg,#0f172a,#1e1b4b 50%,#312e81)',
+  '深海蓝': 'linear-gradient(135deg,#001f3f,#003366,#004080)',
+  '暗黑红': 'linear-gradient(135deg,#1a0a0a,#3b0b0b,#5a1010)',
+  '荧光绿': 'linear-gradient(135deg,#0a1a0a,#0b3b0b,#105a10)',
+  '日落橙': 'linear-gradient(135deg,#1a100a,#3b1b0b,#5a2a10)',
+  '樱花粉': 'linear-gradient(135deg,#2a0a1a,#5a1030,#8a2050)'
+};
+
+function renderThemePicker() {
+  const cur = localStorage.getItem('theme') || '默认紫';
+  document.getElementById('themePicker').innerHTML = Object.keys(THEMES).map(t =>
+    `<button class="theme-chip ${t === cur ? 'active' : ''}" onclick="setTheme('${t}')">${t}</button>`
+  ).join('');
+}
+
+function setTheme(name) {
+  localStorage.setItem('theme', name);
+  document.body.style.background = THEMES[name] || THEMES['默认紫'];
+  document.body.style.backgroundAttachment = 'fixed';
+  renderThemePicker();
 }
 
 /* ================= 登录 ================= */
@@ -357,6 +400,7 @@ async function enterProfile() {
   document.getElementById('pMeta').textContent = '@' + me.username + '　·　第 ' + days + ' 天';
 
   renderAvatars();
+  renderThemePicker();
   renderStats();
   show('profilePage');
 }
@@ -428,7 +472,8 @@ const GAMES = [
   { id: 'wheel', icon: '🎡', name: '随机转盘', desc: '帮你决定' },
   { id: 'mem',   icon: '🃏', name: '记忆翻牌', desc: '越少步越高分' },
   { id: 'ttt',   icon: '⭕', name: '井字棋', desc: '累计胜场' },
-  { id: 'mole',  icon: '🐹', name: '打地鼠', desc: '最高得分' }
+  { id: 'mole',  icon: '🐹', name: '打地鼠', desc: '最高得分' },
+  { id: 'game2048', icon: '🔢', name: '2048', desc: '合并数字最高分' }
 ];
 
 function openGames() {
@@ -461,6 +506,7 @@ function openGame(id) {
   if (id === 'mem') initMem();
   if (id === 'ttt') initTTT();
   if (id === 'mole') resetMole();
+  if (id === 'game2048') init2048();
   if (id === 'rps') updateRPSScore();
 }
 
@@ -912,6 +958,127 @@ function endMole() {
   if (moleScore > 0) reportScore('mole', moleScore);
 }
 
+/* ================= 2048 ================= */
+let g2048 = { board: [], score: 0, best: 0, over: false };
+let touchStartX = 0, touchStartY = 0;
+
+function init2048() {
+  g2048.board = Array(16).fill(0);
+  g2048.score = 0;
+  g2048.over = false;
+  addRandom2048();
+  addRandom2048();
+  render2048();
+  setMsg('g2048Msg', '开始！用方向键或滑动屏幕', '');
+}
+
+function addRandom2048() {
+  const empty = [];
+  for (let i = 0; i < 16; i++) if (g2048.board[i] === 0) empty.push(i);
+  if (!empty.length) return;
+  const idx = empty[Math.floor(Math.random() * empty.length)];
+  g2048.board[idx] = Math.random() < 0.9 ? 2 : 4;
+}
+
+function render2048() {
+  const colors = {
+    0: 'rgba(255,255,255,.05)', 2: '#eee4da', 4: '#ede0c8', 8: '#f2b179',
+    16: '#f59563', 32: '#f67c5f', 64: '#f65e3b', 128: '#edcf72', 256: '#edcc61',
+    512: '#edc850', 1024: '#edc53f', 2048: '#edc22e'
+  };
+  document.getElementById('g2048Board').innerHTML = g2048.board.map(v =>
+    `<div style="display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;border-radius:8px;background:${colors[v] || '#edc22e'};color:${v <= 4 ? '#776e65' : '#fff'}">${v || ''}</div>`
+  ).join('');
+  document.getElementById('g2048Info').textContent = `最高分：${g2048.best}　当前分：${g2048.score}`;
+}
+
+function move2048(dir) {
+  if (g2048.over) return;
+  const old = JSON.stringify(g2048.board);
+  let rows = [];
+  for (let i = 0; i < 4; i++) {
+    let row = [];
+    for (let j = 0; j < 4; j++) {
+      row.push(g2048.board[i * 4 + j]);
+    }
+    rows.push(row);
+  }
+  const merge = (row) => {
+    let r = row.filter(v => v);
+    for (let i = 0; i < r.length - 1; i++) {
+      if (r[i] === r[i + 1]) {
+        r[i] *= 2;
+        g2048.score += r[i];
+        r[i + 1] = 0;
+      }
+    }
+    r = r.filter(v => v);
+    while (r.length < 4) r.push(0);
+    return r;
+  };
+  if (dir === 'left') rows = rows.map(merge);
+  else if (dir === 'right') rows = rows.map(r => merge(r.reverse()).reverse());
+  else if (dir === 'up') {
+    for (let j = 0; j < 4; j++) {
+      let col = rows.map(r => r[j]);
+      col = merge(col);
+      rows.forEach((r, i) => r[j] = col[i]);
+    }
+  } else if (dir === 'down') {
+    for (let j = 0; j < 4; j++) {
+      let col = rows.map(r => r[j]).reverse();
+      col = merge(col).reverse();
+      rows.forEach((r, i) => r[j] = col[i]);
+    }
+  }
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) g2048.board[i * 4 + j] = rows[i][j];
+  if (JSON.stringify(g2048.board) !== old) {
+    addRandom2048();
+    render2048();
+    if (g2048.score > g2048.best) {
+      g2048.best = g2048.score;
+      reportScore('game2048', g2048.best);
+    }
+    if (!canMove2048()) {
+      g2048.over = true;
+      setMsg('g2048Msg', '😵 游戏结束！得分 ' + g2048.score, 'high');
+    }
+  }
+}
+
+function canMove2048() {
+  for (let i = 0; i < 16; i++) {
+    if (g2048.board[i] === 0) return true;
+    const r = Math.floor(i / 4), c = i % 4;
+    if (c < 3 && g2048.board[i] === g2048.board[i + 1]) return true;
+    if (r < 3 && g2048.board[i] === g2048.board[i + 4]) return true;
+  }
+  return false;
+}
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('game2048Page').classList.contains('active')) return;
+  if (e.key === 'ArrowLeft') { move2048('left'); e.preventDefault(); }
+  if (e.key === 'ArrowRight') { move2048('right'); e.preventDefault(); }
+  if (e.key === 'ArrowUp') { move2048('up'); e.preventDefault(); }
+  if (e.key === 'ArrowDown') { move2048('down'); e.preventDefault(); }
+});
+
+document.getElementById('g2048Board').addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+}, { passive: true });
+
+document.getElementById('g2048Board').addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (Math.abs(dx) > 30) move2048(dx > 0 ? 'right' : 'left');
+  } else {
+    if (Math.abs(dy) > 30) move2048(dy > 0 ? 'down' : 'up');
+  }
+}, { passive: true });
+
 /* ================= 工具 ================= */
 function setMsg(id, text, cls) {
   const el = document.getElementById(id);
@@ -933,6 +1100,7 @@ document.getElementById('mInput').addEventListener('keydown', e => {
 
 /* ================= 启动 ================= */
 (async function init() {
+  setTheme(localStorage.getItem('theme') || '默认紫');
   if (token) {
     try {
       const d = await api('/api/me');
