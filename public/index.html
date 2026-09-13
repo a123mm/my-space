@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>我的空间</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;min-height:100vh;padding:16px;font-family:system-ui,-apple-system,"PingFang SC",sans-serif;background:linear-gradient(160deg,#0f172a,#1e1b4b 50%,#312e81);background-attachment:fixed;color:#e2e8f0;display:flex;justify-content:center}
+.app{width:100%;max-width:420px}
+.screen{display:none}
+.screen.active{display:block;animation:fadeUp .3s ease}
+#authPage.active{display:flex;align-items:center;min-height:calc(100vh - 32px)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:18px;margin-bottom:12px}
+.auth-card{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:26px 22px}
+.logo{font-size:44px;text-align:center;line-height:1}
+h1{font-size:21px;text-align:center;margin:12px 0 6px}
+.sub{font-size:13px;text-align:center;opacity:.55;margin:0 0 22px}
+.tabs{display:flex;gap:6px;padding:5px;margin-bottom:20px;background:rgba(255,255,255,.06);border-radius:14px}
+.tab{flex:1;padding:10px;font-size:14px;font-weight:600;font-family:inherit;border:none;border-radius:10px;background:transparent;color:#94a3b8;cursor:pointer}
+.tab.active{background:#6366f1;color:#fff}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;opacity:.6;margin-bottom:6px;padding-left:2px}
+.field input{width:100%;padding:14px;font-size:16px;font-family:inherit;border:1px solid rgba(255,255,255,.15);border-radius:13px;background:rgba(255,255,255,.07);color:#fff;outline:none}
+.field input:focus{border-color:#6366f1;background:rgba(99,102,241,.12)}
+.field input::placeholder{color:rgba(255,255,255,.3)}
+.err{min-height:20px;font-size:13px;color:#f87171;text-align:center;margin-bottom:8px;font-weight:600}
+.btn{display:block;width:100%;padding:15px;font-size:16px;font-weight:700;font-family:inherit;border:none;border-radius:14px;background:linear-gradient(120deg,#6366f1,#8b5cf6);color:#fff;cursor:pointer;transition:transform .1s}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:rgba(255,255,255,.12)}
+.btn.green{background:#16a34a}
+.btn.yellow{background:#ca8a04}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:0 2px}
+.brand{font-size:16px;font-weight:700}
+.btn-logout{padding:8px 15px;font-size:13px;font-weight:600;font-family:inherit;border:1px solid rgba(255,255,255,.18);border-radius:11px;background:rgba(255,255,255,.06);color:#cbd5e1;cursor:pointer}
+.profile-card{border-radius:20px;overflow:hidden;margin-bottom:14px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);text-align:center;padding-bottom:20px}
+.cover{height:88px;background:linear-gradient(120deg,#6366f1,#a855f7,#ec4899)}
+.avatar{width:82px;height:82px;border-radius:50%;background:#171532;border:4px solid #171532;display:flex;align-items:center;justify-content:center;font-size:40px;margin:-45px auto 10px}
+.pname{font-size:20px;font-weight:700;margin-bottom:5px}
+.pmeta{font-size:13px;opacity:.55}
+.card-title{font-size:14px;font-weight:700;margin-bottom:12px}
+textarea{width:100%;min-height:96px;padding:13px;font-size:15px;font-family:inherit;line-height:1.6;border:1px solid rgba(255,255,255,.15);border-radius:13px;background:rgba(255,255,255,.07);color:#fff;outline:none;resize:vertical}
+textarea:focus{border-color:#6366f1}
+textarea::placeholder{color:rgba(255,255,255,.3)}
+.hint{min-height:18px;font-size:12px;color:#4ade80;text-align:center;margin-top:8px;font-weight:600}
+.avatars{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.av{aspect-ratio:1;font-size:22px;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.05);cursor:pointer}
+.av.on{background:#6366f1;border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,.28)}
+.stats{display:flex;gap:10px}
+.stat{flex:1;text-align:center;padding:12px 6px;background:rgba(255,255,255,.05);border-radius:13px;border:1px solid rgba(255,255,255,.08)}
+.stat b{display:block;font-size:19px;margin-bottom:3px}
+.stat span{font-size:11px;opacity:.55}
+.game-item{display:flex;justify-content:space-between;align-items:center;cursor:pointer}
+.game-left{display:flex;align-items:center;gap:10px}
+.game-icon{font-size:24px}
+.game-name{font-weight:600}
+.game-best{font-size:12px;opacity:.55}
+.back{background:transparent;color:#94a3b8;padding:6px 0;margin-bottom:10px;font-size:14px;width:auto;border:none;cursor:pointer;font-family:inherit}
+.msg{min-height:26px;text-align:center;font-weight:700;font-size:16px;margin:10px 0}
+.info{text-align:center;font-size:13px;opacity:.65;margin-bottom:6px}
+.win{color:#4ade80}.low{color:#60a5fa}.high{color:#f87171}
+.chips{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.chip{flex:1;min-width:80px;padding:10px 4px;font-size:13px;font-family:inherit;font-weight:600;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:rgba(255,255,255,.06);color:#cbd5e1;cursor:pointer}
+.chip.active{background:#6366f1;color:#fff;border-color:#6366f1}
+input[type=number],input[type=text]{width:100%;padding:14px;font-size:20px;text-align:center;border:1px solid rgba(255,255,255,.15);border-radius:12px;background:rgba(255,255,255,.08);color:#fff;outline:none;font-family:inherit;margin-bottom:10px}
+.big{font-size:46px;text-align:center;margin:6px 0;letter-spacing:6px}
+.vs{display:flex;justify-content:space-around;align-items:center;margin:6px 0}
+.score{text-align:center;font-size:14px;opacity:.85;margin-top:10px}
+ul.wheel{list-style:none;padding:0;margin:0 0 12px}
+ul.wheel li{padding:12px;margin-bottom:6px;border-radius:12px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);text-align:center;font-size:15px;transition:all .08s}
+ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);font-weight:700}
+.memGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.memCard{aspect-ratio:1;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer}
+.memCard.flip{background:#6366f1;border-color:#818cf8}
+.memCard.done{background:#16a34a;border-color:#22c55e;opacity:.6}
+.tttGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:280px;margin:0 auto}
+.tttCell{aspect-ratio:1;border-radius:14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700;cursor:pointer;user-select:none}
+.tttCell.x{color:#60a5fa}
+.tttCell.o{color:#f87171}
+.holeGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.hole{aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 50% 70%,#3f2a12,#1a1008);border:2px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:36px;cursor:pointer;user-select:none;overflow:hidden;position:relative}
+.hole.mole::after{content:"🐹";position:absolute;animation:pop .15s ease-out}
+@keyframes pop{from{transform:translateY(60%) scale(.5);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.tip{font-size:11px;opacity:.4;text-align:center;margin-top:16px;line-height:1.6}
+.board-row{display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:13px}
+.board-row.me{border-color:#6366f1;background:rgba(99,102,241,.12)}
+.board-rank{font-size:18px;font-weight:700;min-width:36px;text-align:center}
+.board-user{flex:1;margin-left:10px}
+.board-name{font-weight:600;font-size:14px}
+.board-sub{font-size:11px;opacity:.5}
+.board-score{font-weight:700;color:#4ade80;font-size:16px}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 登录 -->
+  <section id="authPage" class="screen active">
+    <div class="auth-card">
+      <div class="logo">🚀</div>
+      <h1>我的空间</h1>
+      <p class="sub">登录后进入你的专属主页</p>
+      <div class="tabs">
+        <button class="tab active" data-tab="login">登录</button>
+        <button class="tab" data-tab="register">注册</button>
+      </div>
+      <form id="authForm">
+        <div class="field">
+          <label>用户名</label>
+          <input id="inUser" type="text" placeholder="2-12 个字符" maxlength="12">
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <input id="inPass" type="password" placeholder="至少 4 位">
+        </div>
+        <div class="field" id="nickField" style="display:none">
+          <label>昵称（可选）</label>
+          <input id="inNick" type="text" placeholder="不填就用用户名" maxlength="12">
+        </div>
+        <div class="err" id="authErr"></div>
+        <button class="btn" type="submit" id="authBtn">登录</button>
+      </form>
+      <div class="tip">密码用 pbkdf2 加密，数据存服务器 data.json</div>
+    </div>
+  </section>
+
+  <!-- 主页 -->
+  <section id="profilePage" class="screen">
+    <div class="topbar">
+      <div class="brand">🚀 我的空间</div>
+      <button class="btn-logout" onclick="logout()">退出</button>
+    </div>
+    <div class="profile-card">
+      <div class="cover"></div>
+      <div class="avatar" id="pAvatar">🐱</div>
+      <div class="pname" id="pName">...</div>
+      <div class="pmeta" id="pMeta"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📝 我的简介</div>
+      <textarea id="pBio" maxlength="200" placeholder="写点介绍吧……"></textarea>
+      <button class="btn" style="margin-top:12px" onclick="saveBio()">保存</button>
+      <div class="hint" id="bioHint"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">😀 换个头像</div>
+      <div class="avatars" id="avatarPicker"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 我的数据</div>
+      <div class="stats" id="pStats"></div>
+    </div>
+    <button class="btn green" onclick="openGames()">🎮 进入游戏大厅</button>
+    <button class="btn yellow" style="margin-top:10px" onclick="openBoard()">🏆 排行榜</button>
+  </section>
+
+  <!-- 游戏大厅 -->
+  <section id="gamesPage" class="screen">
+    <button class="back" onclick="show('profilePage')">← 返回主页</button>
+    <div class="card">
+      <div class="card-title">🎮 游戏大厅</div>
+      <div id="gameList"></div>
+    </div>
+  </section>
+
+  <!-- 排行榜 -->
+  <section id="boardPage" class="screen">
+    <button class="back" onclick="show('profilePage')">← 返回主页</button>
+    <div class="card">
+      <div class="card-title">🏆 排行榜（前 20 名）</div>
+      <div id="boardList"></div>
+    </div>
+  </section>
+
+  <!-- 猜数字 -->
+  <section id="guessPage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card">
+      <div class="chips">
+        <button class="chip" onclick="startGuess(50,this)">简单 1-50</button>
+        <button class="chip active" onclick="startGuess(100,this)">普通 1-100</button>
+        <button class="chip" onclick="startGuess(1000,this)">地狱 1-1000</button>
+      </div>
+      <input id="gInput" type="number" inputmode="numeric" placeholder="1 ~ 100">
+      <button class="btn" onclick="checkGuess()">猜！</button>
+      <button class="btn ghost" onclick="startGuess(g.max)">重新开始</button>
+      <div id="gMsg" class="msg"></div>
+      <div id="gInfo" class="info"></div>
+    </div>
+  </section>
+
+  <!-- 石头剪刀布 -->
+  <section id="rpsPage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card">
+      <div class="big">✊ ✋ ✌️</div>
+      <div class="vs">
+        <span>你 <b id="rpsMe">?</b></span>
+        <span style="opacity:.4">VS</span>
+        <span>电脑 <b id="rpsCpu">?</b></span>
+      </div>
+      <div id="rpsMsg" class="msg"></div>
+      <div class="chips">
+        <button class="chip" onclick="playRPS('rock')">✊</button>
+        <button class="chip" onclick="playRPS('paper')">✋</button>
+        <button class="chip" onclick="playRPS('scissors')">✌️</button>
+      </div>
+      <div class="score" id="rpsScore"></div>
+      <button class="btn ghost" onclick="resetRPS()">清空比分</button>
+    </div>
+  </section>
+
+  <!-- 口算 -->
+  <section id="mathPage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card">
+      <div id="mQ" class="msg" style="font-size:28px;margin:16px 0"></div>
+      <input id="mInput" type="number" inputmode="numeric" placeholder="输入答案">
+      <button class="btn" onclick="checkMath()">确认</button>
+      <button class="btn ghost" onclick="newMath()">跳过</button>
+      <div id="mMsg" class="msg"></div>
+      <div id="mInfo" class="info"></div>
+    </div>
+  </section>
+
+  <!-- 转盘 -->
+  <section id="wheelPage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card">
+      <ul class="wheel" id="wheelList"></ul>
+      <div id="wheelResult" class="msg"></div>
+      <button class="btn yellow" onclick="spin()">🎡 转！</button>
+    </div>
+    <div class="card">
+      <div class="info" style="text-align:left;margin-bottom:8px">每行一个选项：</div>
+      <textarea id="wheelText" oninput="applyWheelText()"></textarea>
+    </div>
+  </section>
+
+  <!-- 记忆翻牌 -->
+  <section id="memPage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card">
+      <div class="info" id="memInfo"></div>
+      <div class="memGrid" id="memGrid"></div>
+      <div id="memMsg" class="msg"></div>
+      <button class="btn ghost" onclick="initMem()">重新开始</button>
+    </div>
+  </section>
+
+  <!-- 井字棋 -->
+  <section id="tttPage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card">
+      <div class="chips">
+        <button class="chip active" onclick="setTTTDiff('easy',this)">简单</button>
+        <button class="chip" onclick="setTTTDiff('hard',this)">困难</button>
+      </div>
+      <div class="tttGrid" id="tttGrid"></div>
+      <div id="tttMsg" class="msg"></div>
+      <div class="score" id="tttScore"></div>
+      <button class="btn ghost" onclick="initTTT()">重新开始</button>
+    </div>
+  </section>
+
+  <!-- 打地鼠 -->
+  <section id="molePage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card">
+      <div class="info" id="moleInfo">点地鼠，30 秒挑战</div>
+      <div class="holeGrid" id="holeGrid"></div>
+      <div id="moleMsg" class="msg"></div>
+      <div class="score" id="moleScore">得分 0　时间 30</div>
+      <button class="btn green" id="moleBtn" onclick="startMole()">开始</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ================= API ================= */
+let token = localStorage.getItem('token') || '';
+let me = null;
+let scores = {};
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const res = await fetch(path, { ...opts, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || '请求失败');
+  return data;
+}
+
+/* ================= 屏幕 ================= */
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/* ================= 登录 ================= */
+let mode = 'login';
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    mode = t.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+    document.getElementById('nickField').style.display = mode === 'register' ? 'block' : 'none';
+    document.getElementById('authBtn').textContent = mode === 'register' ? '注册并进入' : '登录';
+    document.getElementById('authErr').textContent = '';
+  };
+});
+
+document.getElementById('authForm').onsubmit = async e => {
+  e.preventDefault();
+  const u = document.getElementById('inUser').value.trim();
+  const p = document.getElementById('inPass').value;
+  const n = document.getElementById('inNick').value.trim();
+  const err = document.getElementById('authErr');
+  err.textContent = '';
+
+  try {
+    const body = mode === 'register'
+      ? { username: u, password: p, nick: n }
+      : { username: u, password: p };
+    const path = mode === 'register' ? '/api/register' : '/api/login';
+    const data = await api(path, { method: 'POST', body: JSON.stringify(body) });
+
+    token = data.token;
+    localStorage.setItem('token', token);
+    me = data.user;
+
+    document.getElementById('authForm').reset();
+    await enterProfile();
+  } catch (ex) {
+    err.textContent = ex.message;
+  }
+};
+
+/* ================= 主页 ================= */
+async function enterProfile() {
+  if (!me) {
+    const d = await api('/api/me');
+    me = d.user;
+  }
+  const sc = await api('/api/scores');
+  scores = sc.scores || {};
+
+  document.getElementById('pAvatar').textContent = me.avatar;
+  document.getElementById('pName').textContent = me.nick;
+  document.getElementById('pBio').value = me.bio || '';
+  document.getElementById('bioHint').textContent = '';
+
+  const days = Math.floor((Date.now() - me.created) / 86400000) + 1;
+  document.getElementById('pMeta').textContent = '@' + me.username + '　·　第 ' + days + ' 天';
+
+  renderAvatars();
+  renderStats();
+  show('profilePage');
+}
+
+const AVATARS = ['🐱','🐶','🦊','🐼','🐯','🦁','🐸','🐧','🦄','🐲','👾','🤖','😎','🥷','🐙','🎃'];
+
+function renderAvatars() {
+  document.getElementById('avatarPicker').innerHTML = AVATARS.map(a =>
+    `<button class="av ${a === me.avatar ? 'on' : ''}" type="button" onclick="pickAvatar('${a}')">${a}</button>`
+  ).join('');
+}
+
+async function pickAvatar(a) {
+  const d = await api('/api/profile', {
+    method: 'PUT',
+    body: JSON.stringify({ avatar: a })
+  });
+  me = d.user;
+  document.getElementById('pAvatar').textContent = a;
+  renderAvatars();
+}
+
+async function saveBio() {
+  const bio = document.getElementById('pBio').value.trim().slice(0, 200);
+  const d = await api('/api/profile', {
+    method: 'PUT',
+    body: JSON.stringify({ bio })
+  });
+  me = d.user;
+  const h = document.getElementById('bioHint');
+  h.textContent = '✅ 已保存';
+  setTimeout(() => { h.textContent = ''; }, 1500);
+  renderStats();
+}
+
+function renderStats() {
+  const days = Math.floor((Date.now() - me.created) / 86400000) + 1;
+  document.getElementById('pStats').innerHTML = `
+    <div class="stat"><b>${days}</b><span>加入天数</span></div>
+    <div class="stat"><b>${(me.bio || '').length}</b><span>简介字数</span></div>
+    <div class="stat"><b>${Object.keys(scores).length}</b><span>玩过游戏</span></div>
+  `;
+}
+
+function logout() {
+  api('/api/logout', { method: 'POST' }).catch(() => {});
+  token = ''; me = null; scores = {};
+  localStorage.removeItem('token');
+  show('authPage');
+}
+
+/* ================= 分数上报 ================= */
+async function reportScore(game, score) {
+  if (!token) return;
+  try {
+    await api('/api/score', {
+      method: 'POST',
+      body: JSON.stringify({ game, score })
+    });
+    if (!scores[game] || score > scores[game]) scores[game] = score;
+  } catch (e) {}
+}
+
+/* ================= 游戏大厅 ================= */
+const GAMES = [
+  { id: 'guess', icon: '🎯', name: '猜数字', desc: '越少次越高分' },
+  { id: 'rps',   icon: '✊', name: '石头剪刀布', desc: '累计胜场' },
+  { id: 'math',  icon: '🧮', name: '口算出题机', desc: '最高连对' },
+  { id: 'wheel', icon: '🎡', name: '随机转盘', desc: '帮你决定' },
+  { id: 'mem',   icon: '🃏', name: '记忆翻牌', desc: '越少步越高分' },
+  { id: 'ttt',   icon: '⭕', name: '井字棋', desc: '累计胜场' },
+  { id: 'mole',  icon: '🐹', name: '打地鼠', desc: '最高得分' }
+];
+
+function openGames() {
+  renderGames();
+  show('gamesPage');
+}
+
+function renderGames() {
+  document.getElementById('gameList').innerHTML = GAMES.map(g => {
+    const best = scores[g.id];
+    return `
+      <div class="game-item" onclick="openGame('${g.id}')" style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+        <div class="game-left">
+          <div class="game-icon">${g.icon}</div>
+          <div>
+            <div class="game-name">${g.name}</div>
+            <div class="game-best">${g.desc}${best ? '　🏆 ' + best : ''}</div>
+          </div>
+        </div>
+        <div style="opacity:.4">›</div>
+      </div>`;
+  }).join('');
+}
+
+function openGame(id) {
+  show(id + 'Page');
+  if (id === 'guess') startGuess(g.max || 100);
+  if (id === 'math') newMath();
+  if (id === 'wheel') renderWheel();
+  if (id === 'mem') initMem();
+  if (id === 'ttt') initTTT();
+  if (id === 'mole') resetMole();
+  if (id === 'rps') updateRPSScore();
+}
+
+/* ================= 排行榜 ================= */
+async function openBoard() {
+  show('boardPage');
+  const box = document.getElementById('boardList');
+  box.textContent = '加载中…';
+  try {
+    const d = await api('/api/leaderboard');
+    if (!d.list.length) {
+      box.innerHTML = '<div style="text-align:center;opacity:.5;padding:20px">还没有人玩，快去当第一名！</div>';
+      return;
+    }
+    box.innerHTML = d.list.map((u, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+      const isMe = me && u.username === me.username;
+      return `
+        <div class="board-row ${isMe ? 'me' : ''}">
+          <div class="board-rank">${medal}</div>
+          <div class="board-user">
+            <div class="board-name">${u.avatar} ${esc(u.nick)}</div>
+            <div class="board-sub">@${esc(u.username)}</div>
+          </div>
+          <div class="board-score">${u.total}</div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    box.textContent = '加载失败：' + e.message;
+  }
+}
+
+/* ================= 猜数字 ================= */
+const g = { max: 100, answer: 0, tries: 0, sec: 0, timer: null, playing: false };
+
+function startGuess(max, el) {
+  if (max) g.max = max;
+  g.answer = Math.floor(Math.random() * g.max) + 1;
+  g.tries = 0; g.sec = 0; g.playing = true;
+  clearInterval(g.timer);
+  g.timer = setInterval(() => { g.sec++; renderGuess(); }, 1000);
+  if (el) {
+    document.querySelectorAll('#guessPage .chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  }
+  const inp = document.getElementById('gInput');
+  inp.value = ''; inp.max = g.max; inp.placeholder = '1 ~ ' + g.max;
+  setMsg('gMsg', '开始！范围 1 ~ ' + g.max, '');
+  renderGuess();
+  inp.focus();
+}
+
+function renderGuess() {
+  document.getElementById('gInfo').textContent = `⏱ ${g.sec} 秒　🎯 第 ${g.tries} 次`;
+}
+
+function checkGuess() {
+  if (!g.playing) { startGuess(g.max); return; }
+  const v = parseInt(document.getElementById('gInput').value);
+  if (!v || v < 1 || v > g.max) { setMsg('gMsg', '请输入 1 ~ ' + g.max, ''); return; }
+  g.tries++;
+
+  if (v === g.answer) {
+    clearInterval(g.timer);
+    g.playing = false;
+    setMsg('gMsg', `🎉 猜对了！答案就是 ${g.answer}`, 'win');
+    const score = Math.max(1, 1000 - g.tries * 10 - g.sec);
+    reportScore('guess', score);
+  } else if (v < g.answer) {
+    setMsg('gMsg', '📈 小了，再大一点', 'low');
+  } else {
+    setMsg('gMsg', '📉 大了，再小一点', 'high');
+  }
+  document.getElementById('gInput').value = '';
+  renderGuess();
+  document.getElementById('gInput').focus();
+}
+
+/* ================= 石头剪刀布 ================= */
+const RPS = { rock: '✊', paper: '✋', scissors: '✌️' };
+let rpsState = { win: 0, lose: 0, draw: 0 };
+
+function playRPS(myChoice) {
+  const keys = ['rock', 'paper', 'scissors'];
+  const cpu = keys[Math.floor(Math.random() * 3)];
+  document.getElementById('rpsMe').textContent = RPS[myChoice];
+  document.getElementById('rpsCpu').textContent = RPS[cpu];
+
+  let res;
+  if (myChoice === cpu) { res = 'draw'; rpsState.draw++; }
+  else if ((myChoice === 'rock' && cpu === 'scissors') ||
+           (myChoice === 'paper' && cpu === 'rock') ||
+           (myChoice === 'scissors' && cpu === 'paper')) { res = 'win'; rpsState.win++; }
+  else { res = 'lose'; rpsState.lose++; }
+
+  const txt = {
+    win: '🎉 你赢了！' + RPS[myChoice] + ' 打败 ' + RPS[cpu],
+    lose: '😵 你输了！' + RPS[cpu] + ' 打败 ' + RPS[myChoice],
+    draw: '🤝 平局'
+  }[res];
+
+  setMsg('rpsMsg', txt, res === 'win' ? 'win' : res === 'lose' ? 'high' : '');
+  updateRPSScore();
+  if (rpsState.win > 0) reportScore('rps', rpsState.win);
+}
+
+function updateRPSScore() {
+  document.getElementById('rpsScore').textContent =
+    `胜 ${rpsState.win}　负 ${rpsState.lose}　平 ${rpsState.draw}`;
+}
+
+function resetRPS() {
+  rpsState = { win: 0, lose: 0, draw: 0 };
+  updateRPSScore();
+  setMsg('rpsMsg', '', '');
+  document.getElementById('rpsMe').textContent = '?';
+  document.getElementById('rpsCpu').textContent = '?';
+}
+
+/* ================= 口算 ================= */
+let mathAns = 0, mathState = { right: 0, wrong: 0, cur: 0, best: 0 };
+const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+
+function newMath() {
+  const ops = ['+', '-', '×', '÷'];
+  const op = ops[Math.floor(Math.random() * 4)];
+  let a, b, ans;
+  if (op === '+') { a = rnd(10, 99); b = rnd(10, 99); ans = a + b; }
+  else if (op === '-') { a = rnd(20, 99); b = rnd(1, a - 1); ans = a - b; }
+  else if (op === '×') { a = rnd(2, 9); b = rnd(2, 9); ans = a * b; }
+  else { b = rnd(2, 9); ans = rnd(2, 9); a = b * ans; }
+  mathAns = ans;
+  document.getElementById('mQ').textContent = `${a} ${op} ${b} = ?`;
+  document.getElementById('mInput').value = '';
+  document.getElementById('mInput').focus();
+  setMsg('mMsg', '', '');
+  renderMath();
+}
+
+function checkMath() {
+  const v = parseInt(document.getElementById('mInput').value);
+  if (isNaN(v)) { setMsg('mMsg', '先输入答案哦', ''); return; }
+  if (v === mathAns) {
+    mathState.right++; mathState.cur++;
+    if (mathState.cur > mathState.best) mathState.best = mathState.cur;
+    setMsg('mMsg', '✅ 答对了！连对 ' + mathState.cur + ' 题', 'win');
+    if (mathState.best > 0) reportScore('math', mathState.best);
+    setTimeout(newMath, 600);
+  } else {
+    mathState.wrong++; mathState.cur = 0;
+    setMsg('mMsg', '❌ 错了，答案是 ' + mathAns, 'high');
+    setTimeout(newMath, 1200);
+  }
+  renderMath();
+}
+
+function renderMath() {
+  document.getElementById('mInfo').textContent =
+    `✅ ${mathState.right}　❌ ${mathState.wrong}　🔥 连对 ${mathState.cur}　最高 ${mathState.best}`;
+}
+
+/* ================= 转盘 ================= */
+let wheelItems = [], spinning = false;
+let wheelText = localStorage.getItem('wheelText') ||
+  "写语文\n写数学\n写英语\n休息5分钟\n吃零食\n背单词";
+
+function renderWheel() {
+  document.getElementById('wheelText').value = wheelText;
+  applyWheelText();
+}
+
+function applyWheelText() {
+  wheelText = document.getElementById('wheelText').value;
+  localStorage.setItem('wheelText', wheelText);
+  wheelItems = wheelText.split('\n').map(s => s.trim()).filter(Boolean);
+  const ul = document.getElementById('wheelList');
+  ul.innerHTML = wheelItems.length
+    ? wheelItems.map((t, i) => `<li id="wi${i}">${esc(t)}</li>`).join('')
+    : '<li>至少写一个选项</li>';
+}
+
+function spin() {
+  if (spinning) return;
+  if (wheelItems.length < 2) { setMsg('wheelResult', '至少两个选项', ''); return; }
+  spinning = true;
+  document.getElementById('wheelResult').textContent = '转啊转……';
+  document.querySelectorAll('#wheelList li').forEach(li => li.classList.remove('on'));
+
+  const start = Date.now(), duration = 2600;
+  let idx = -1;
+
+  function tick() {
+    idx = (idx + 1) % wheelItems.length;
+    document.querySelectorAll('#wheelList li').forEach(li => li.classList.remove('on'));
+    const el = document.getElementById('wi' + idx);
+    if (el) el.classList.add('on');
+
+    const elapsed = Date.now() - start;
+    if (elapsed < duration) {
+      setTimeout(tick, 45 + 260 * Math.pow(elapsed / duration, 3));
+    } else {
+      spinning = false;
+      setMsg('wheelResult', '👉 ' + wheelItems[idx], 'win');
+    }
+  }
+  tick();
+}
+
+/* ================= 记忆翻牌 ================= */
+const MEM_ICONS = ['🍎','🍌','🍇','🍓','🍑','🍒','🥝','🍍'];
+let memCards = [], memFirst = null, memLock = false, memMoves = 0, memMatched = 0;
+
+function initMem() {
+  const icons = [...MEM_ICONS, ...MEM_ICONS];
+  for (let i = icons.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [icons[i], icons[j]] = [icons[j], icons[i]];
+  }
+  memCards = icons;
+  memFirst = null; memLock = false; memMoves = 0; memMatched = 0;
+  setMsg('memMsg', '', '');
+  renderMem();
+}
+
+function renderMem() {
+  document.getElementById('memGrid').innerHTML = memCards.map((ic, i) => {
+    const flipped = memFirst && memFirst.i === i;
+    return `<div class="memCard ${flipped ? 'flip' : ''}" id="mc${i}" onclick="flipMem(${i})">${flipped ? ic : ''}</div>`;
+  }).join('');
+  document.getElementById('memInfo').textContent =
+    memMatched === 8 ? '🎉 完成！' : `配对 ${memMatched}/8　步数 ${memMoves}`;
+}
+
+function flipMem(i) {
+  if (memLock) return;
+  if (memFirst && memFirst.i === i) return;
+  const el = document.getElementById('mc' + i);
+  if (!el || el.classList.contains('done')) return;
+
+  el.classList.add('flip');
+  el.textContent = memCards[i];
+
+  if (!memFirst) { memFirst = { i, ic: memCards[i] }; return; }
+
+  memMoves++;
+  if (memFirst.ic === memCards[i]) {
+    document.getElementById('mc' + memFirst.i).classList.add('done');
+    el.classList.add('done');
+    memMatched++;
+    memFirst = null;
+    renderMem();
+    if (memMatched === 8) {
+      const score = Math.max(1, 200 - memMoves);
+      reportScore('mem', score);
+      setMsg('memMsg', `🎉 完成！${memMoves} 步`, 'win');
+    } else {
+      setMsg('memMsg', '✅ 配对成功', 'win');
+    }
+  } else {
+    memLock = true;
+    setMsg('memMsg', '❌ 不一样', 'high');
+    const a = memFirst.i;
+    setTimeout(() => {
+      const ea = document.getElementById('mc' + a);
+      const eb = document.getElementById('mc' + i);
+      if (ea) { ea.classList.remove('flip'); ea.textContent = ''; }
+      if (eb) { eb.classList.remove('flip'); eb.textContent = ''; }
+      memFirst = null; memLock = false;
+    }, 700);
+  }
+}
+
+/* ================= 井字棋 ================= */
+let tttBoard = Array(9).fill(''), tttOver = false, tttDiff = 'easy';
+let tttState = { win: 0, lose: 0, draw: 0 };
+
+function setTTTDiff(d, el) {
+  tttDiff = d;
+  document.querySelectorAll('#tttPage .chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  initTTT();
+}
+
+function initTTT() {
+  tttBoard = Array(9).fill(''); tttOver = false;
+  setMsg('tttMsg', '', '');
+  renderTTT(); renderTTTScore();
+}
+
+function renderTTTScore() {
+  document.getElementById('tttScore').textContent =
+    `胜 ${tttState.win}　负 ${tttState.lose}　平 ${tttState.draw}`;
+}
+
+function renderTTT() {
+  document.getElementById('tttGrid').innerHTML = tttBoard.map((v, i) =>
+    `<div class="tttCell ${v === 'X' ? 'x' : v === 'O' ? 'o' : ''}" onclick="clickTTT(${i})">${v}</div>`
+  ).join('');
+}
+
+function clickTTT(i) {
+  if (tttOver || tttBoard[i]) return;
+  tttBoard[i] = 'X';
+  renderTTT();
+  if (checkTTT('X')) return;
+  if (tttBoard.every(v => v)) return drawTTT();
+
+  setTimeout(() => {
+    const move = tttDiff === 'hard' ? bestMove('O') : randomMove();
+    if (move === -1) return;
+    tttBoard[move] = 'O';
+    renderTTT();
+    if (checkTTT('O')) return;
+    if (tttBoard.every(v => v)) drawTTT();
+  }, 300);
+}
+
+function randomMove() {
+  const empty = tttBoard.map((v, i) => v ? -1 : i).filter(i => i !== -1);
+  return empty.length ? empty[Math.floor(Math.random() * empty.length)] : -1;
+}
+
+function bestMove(player) {
+  let best = -Infinity, move = -1;
+  for (let i = 0; i < 9; i++) {
+    if (tttBoard[i]) continue;
+    tttBoard[i] = player;
+    const s = minimax(tttBoard, player === 'O' ? 'X' : 'O', 0);
+    tttBoard[i] = '';
+    if (s > best) { best = s; move = i; }
+  }
+  return move;
+}
+
+function minimax(board, player, depth) {
+  const w = winner(board);
+  if (w === 'O') return 10 - depth;
+  if (w === 'X') return depth - 10;
+  if (board.every(v => v)) return 0;
+  if (player === 'O') {
+    let best = -Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (board[i]) continue;
+      board[i] = 'O';
+      best = Math.max(best, minimax(board, 'X', depth + 1));
+      board[i] = '';
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (let i = 0; i < 9; i++) {
+      if (board[i]) continue;
+      board[i] = 'X';
+      best = Math.min(best, minimax(board, 'O', depth + 1));
+      board[i] = '';
+    }
+    return best;
+  }
+}
+
+function winner(b) {
+  const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+  for (const [a, b2, c] of lines) {
+    if (b[a] && b[a] === b[b2] && b[a] === b[c]) return b[a];
+  }
+  return null;
+}
+
+function checkTTT(p) {
+  const w = winner(tttBoard);
+  if (!w) return false;
+  tttOver = true;
+  if (w === 'X') {
+    tttState.win++;
+    setMsg('tttMsg', '🎉 你赢了！', 'win');
+    reportScore('ttt', tttState.win);
+  } else {
+    tttState.lose++;
+    setMsg('tttMsg', '😵 电脑赢了', 'high');
+  }
+  renderTTTScore();
+  return true;
+}
+
+function drawTTT() {
+  tttOver = true; tttState.draw++;
+  setMsg('tttMsg', '🤝 平局', '');
+  renderTTTScore();
+}
+
+/* ================= 打地鼠 ================= */
+let moleTimer = null, moleSpawnTimer = null, moleTime = 30, moleScore = 0, molePlaying = false;
+const HOLE_N = 9;
+
+function resetMole() {
+  clearInterval(moleTimer); clearTimeout(moleSpawnTimer);
+  molePlaying = false; moleTime = 30; moleScore = 0;
+  document.getElementById('holeGrid').innerHTML =
+    Array(HOLE_N).fill(0).map((_, i) =>
+      `<div class="hole" id="hole${i}" onclick="hitMole(${i})"></div>`).join('');
+  document.getElementById('moleScore').textContent = '得分 0　时间 30';
+  setMsg('moleMsg', '', '');
+  const btn = document.getElementById('moleBtn');
+  btn.textContent = '开始'; btn.disabled = false;
+}
+
+function startMole() {
+  resetMole();
+  molePlaying = true;
+  const btn = document.getElementById('moleBtn');
+  btn.disabled = true; btn.textContent = '进行中…';
+
+  moleTimer = setInterval(() => {
+    moleTime--;
+    document.getElementById('moleScore').textContent = `得分 ${moleScore}　时间 ${moleTime}`;
+    if (moleTime <= 0) endMole();
+  }, 1000);
+  spawnMole();
+}
+
+function spawnMole() {
+  if (!molePlaying) return;
+  const i = Math.floor(Math.random() * HOLE_N);
+  const el = document.getElementById('hole' + i);
+  if (!el) return;
+  el.classList.add('mole');
+  const stay = Math.max(500, 1200 - (30 - moleTime) * 25);
+  setTimeout(() => {
+    el.classList.remove('mole');
+    if (molePlaying) moleSpawnTimer = setTimeout(spawnMole, Math.random() * 500 + 250);
+  }, stay);
+}
+
+function hitMole(i) {
+  const el = document.getElementById('hole' + i);
+  if (!el || !el.classList.contains('mole')) return;
+  el.classList.remove('mole');
+  moleScore++;
+  document.getElementById('moleScore').textContent = `得分 ${moleScore}　时间 ${moleTime}`;
+}
+
+function endMole() {
+  molePlaying = false;
+  clearInterval(moleTimer); clearTimeout(moleSpawnTimer);
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('mole'));
+  const btn = document.getElementById('moleBtn');
+  btn.disabled = false; btn.textContent = '再来一局';
+  setMsg('moleMsg', `游戏结束，得分 ${moleScore}`, '');
+  if (moleScore > 0) reportScore('mole', moleScore);
+}
+
+/* ================= 工具 ================= */
+function setMsg(id, text, cls) {
+  const el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'msg ' + (cls || '');
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* 回车 */
+document.getElementById('gInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkGuess();
+});
+document.getElementById('mInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkMath();
+});
+
+/* ================= 启动 ================= */
+(async function init() {
+  if (token) {
+    try {
+      const d = await api('/api/me');
+      me = d.user;
+      await enterProfile();
+      return;
+    } catch (e) {
+      token = ''; localStorage.removeItem('token');
+    }
+  }
+  show('authPage');
+})();
+</script>
+</body>
+</html>
