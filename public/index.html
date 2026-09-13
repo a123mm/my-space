@@ -124,7 +124,7 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
         <div class="err" id="authErr"></div>
         <button class="btn" type="submit" id="authBtn">登录</button>
       </form>
-      <div class="tip" style="font-size:11px;opacity:.4;text-align:center;margin-top:16px;line-height:1.6">密码用 pbkdf2 加密，数据存 Cloudflare D1 数据库</div>
+      <div class="tip" style="font-size:11px;opacity:.4;text-align:center;margin-top:16px;line-height:1.6">密码加密存储在 Cloudflare D1 数据库</div>
     </div>
   </section>
 
@@ -177,6 +177,31 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
     <div class="card">
       <div class="card-title">🏆 排行榜（前 20 名）</div>
       <div id="boardList"></div>
+    </div>
+  </section>
+
+  <!-- 访客主页 -->
+  <section id="visitPage" class="screen">
+    <button class="back" onclick="show('boardPage')">← 返回排行榜</button>
+    <div class="profile-card">
+      <div class="cover"></div>
+      <div class="avatar" id="vAvatar">🐱</div>
+      <div class="pname" id="vName">...</div>
+      <div class="pmeta" id="vMeta"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📝 个人简介</div>
+      <div id="vBio" style="font-size:14px;opacity:.8;line-height:1.6"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">✍️ 给他留言</div>
+      <textarea id="vMsgInput" maxlength="200" placeholder="写点什么吧……"></textarea>
+      <button class="btn" style="margin-top:12px" onclick="sendMessage()">发送留言</button>
+      <div class="hint" id="vMsgHint"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📬 留言板</div>
+      <div id="vMsgList" style="font-size:14px;line-height:1.6;opacity:.85">加载中…</div>
     </div>
   </section>
 
@@ -365,16 +390,12 @@ document.getElementById('authForm').onsubmit = async e => {
   err.textContent = '';
 
   try {
-    const body = mode === 'register'
-      ? { username: u, password: p, nick: n }
-      : { username: u, password: p };
+    const body = mode === 'register' ? { username: u, password: p, nick: n } : { username: u, password: p };
     const path = mode === 'register' ? '/api/register' : '/api/login';
     const data = await api(path, { method: 'POST', body: JSON.stringify(body) });
-
     token = data.token;
     localStorage.setItem('token', token);
     me = data.user;
-
     document.getElementById('authForm').reset();
     await enterProfile();
   } catch (ex) {
@@ -414,10 +435,7 @@ function renderAvatars() {
 }
 
 async function pickAvatar(a) {
-  const d = await api('/api/profile', {
-    method: 'PUT',
-    body: JSON.stringify({ avatar: a })
-  });
+  const d = await api('/api/profile', { method: 'PUT', body: JSON.stringify({ avatar: a }) });
   me = d.user;
   document.getElementById('pAvatar').textContent = a;
   renderAvatars();
@@ -425,10 +443,7 @@ async function pickAvatar(a) {
 
 async function saveBio() {
   const bio = document.getElementById('pBio').value.trim().slice(0, 200);
-  const d = await api('/api/profile', {
-    method: 'PUT',
-    body: JSON.stringify({ bio })
-  });
+  const d = await api('/api/profile', { method: 'PUT', body: JSON.stringify({ bio }) });
   me = d.user;
   const h = document.getElementById('bioHint');
   h.textContent = '✅ 已保存';
@@ -456,10 +471,7 @@ function logout() {
 async function reportScore(game, score) {
   if (!token) return;
   try {
-    await api('/api/score', {
-      method: 'POST',
-      body: JSON.stringify({ game, score })
-    });
+    await api('/api/score', { method: 'POST', body: JSON.stringify({ game, score }) });
     if (!scores[game] || score > scores[game]) scores[game] = score;
   } catch (e) {}
 }
@@ -525,17 +537,64 @@ async function openBoard() {
       const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
       const isMe = me && u.username === me.username;
       return `
-        <div class="board-row ${isMe ? 'me' : ''}">
+        <div class="board-row ${isMe ? 'me' : ''}" onclick="viewProfile('${u.username}')" style="cursor:pointer">
           <div class="board-rank">${medal}</div>
           <div class="board-user">
             <div class="board-name">${u.avatar} ${esc(u.nick)}</div>
-            <div class="board-sub">@${esc(u.username)}</div>
+            <div class="board-sub">@${esc(u.username)} · 访问 ${u.visits || 0}</div>
           </div>
           <div class="board-score">${u.total}</div>
         </div>`;
     }).join('');
   } catch (e) {
     box.textContent = '加载失败：' + e.message;
+  }
+}
+
+/* ================= 访客主页 & 留言板 ================= */
+let currentVisitUsername = '';
+
+async function viewProfile(username) {
+  show('visitPage');
+  currentVisitUsername = username;
+  document.getElementById('vMsgHint').textContent = '';
+  document.getElementById('vMsgInput').value = '';
+  document.getElementById('vMsgList').textContent = '加载中…';
+  
+  try {
+    const d = await api('/api/profile/' + username);
+    document.getElementById('vAvatar').textContent = d.user.avatar;
+    document.getElementById('vName').textContent = d.user.nick;
+    document.getElementById('vMeta').textContent = '@' + d.user.username + '　·　访问量 ' + d.user.visits;
+    document.getElementById('vBio').textContent = d.user.bio || '这个人很懒，什么都没写……';
+
+    const msgs = d.messages || [];
+    if (!msgs.length) {
+      document.getElementById('vMsgList').innerHTML = '<div style="opacity:.5">还没有留言，来抢沙发！</div>';
+    } else {
+      document.getElementById('vMsgList').innerHTML = msgs.map(m => {
+        const time = new Date(m.created_at).toLocaleString('zh-CN', { hour12: false });
+        return `<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)">
+          <b>${esc(m.sender)}</b> <span style="font-size:12px;opacity:.5">${time}</span><br>
+          <span>${esc(m.content)}</span>
+        </div>`;
+      }).join('');
+    }
+  } catch (e) {
+    document.getElementById('vMsgList').textContent = '加载失败：' + e.message;
+  }
+}
+
+async function sendMessage() {
+  const content = document.getElementById('vMsgInput').value.trim();
+  if (!content) { setMsg('vMsgHint', '写点什么再发送吧', 'high'); return; }
+  try {
+    await api('/api/messages', { method: 'POST', body: JSON.stringify({ receiver: currentVisitUsername, content }) });
+    document.getElementById('vMsgInput').value = '';
+    setMsg('vMsgHint', '✅ 留言成功！', 'win');
+    setTimeout(() => { viewProfile(currentVisitUsername); }, 800);
+  } catch (e) {
+    setMsg('vMsgHint', e.message, 'high');
   }
 }
 
@@ -614,8 +673,7 @@ function playRPS(myChoice) {
 }
 
 function updateRPSScore() {
-  document.getElementById('rpsScore').textContent =
-    `胜 ${rpsState.win}　负 ${rpsState.lose}　平 ${rpsState.draw}`;
+  document.getElementById('rpsScore').textContent = `胜 ${rpsState.win}　负 ${rpsState.lose}　平 ${rpsState.draw}`;
 }
 
 function resetRPS() {
@@ -664,14 +722,12 @@ function checkMath() {
 }
 
 function renderMath() {
-  document.getElementById('mInfo').textContent =
-    `✅ ${mathState.right}　❌ ${mathState.wrong}　🔥 连对 ${mathState.cur}　最高 ${mathState.best}`;
+  document.getElementById('mInfo').textContent = `✅ ${mathState.right}　❌ ${mathState.wrong}　🔥 连对 ${mathState.cur}　最高 ${mathState.best}`;
 }
 
 /* ================= 转盘 ================= */
 let wheelItems = [], spinning = false;
-let wheelText = localStorage.getItem('wheelText') ||
-  "写语文\n写数学\n写英语\n休息5分钟\n吃零食\n背单词";
+let wheelText = localStorage.getItem('wheelText') || "写语文\n写数学\n写英语\n休息5分钟\n吃零食\n背单词";
 
 function renderWheel() {
   document.getElementById('wheelText').value = wheelText;
@@ -683,9 +739,7 @@ function applyWheelText() {
   localStorage.setItem('wheelText', wheelText);
   wheelItems = wheelText.split('\n').map(s => s.trim()).filter(Boolean);
   const ul = document.getElementById('wheelList');
-  ul.innerHTML = wheelItems.length
-    ? wheelItems.map((t, i) => `<li id="wi${i}">${esc(t)}</li>`).join('')
-    : '<li>至少写一个选项</li>';
+  ul.innerHTML = wheelItems.length ? wheelItems.map((t, i) => `<li id="wi${i}">${esc(t)}</li>`).join('') : '<li>至少写一个选项</li>';
 }
 
 function spin() {
@@ -694,23 +748,16 @@ function spin() {
   spinning = true;
   document.getElementById('wheelResult').textContent = '转啊转……';
   document.querySelectorAll('#wheelList li').forEach(li => li.classList.remove('on'));
-
   const start = Date.now(), duration = 2600;
   let idx = -1;
-
   function tick() {
     idx = (idx + 1) % wheelItems.length;
     document.querySelectorAll('#wheelList li').forEach(li => li.classList.remove('on'));
     const el = document.getElementById('wi' + idx);
     if (el) el.classList.add('on');
-
     const elapsed = Date.now() - start;
-    if (elapsed < duration) {
-      setTimeout(tick, 45 + 260 * Math.pow(elapsed / duration, 3));
-    } else {
-      spinning = false;
-      setMsg('wheelResult', '👉 ' + wheelItems[idx], 'win');
-    }
+    if (elapsed < duration) setTimeout(tick, 45 + 260 * Math.pow(elapsed / duration, 3));
+    else { spinning = false; setMsg('wheelResult', '👉 ' + wheelItems[idx], 'win'); }
   }
   tick();
 }
@@ -725,8 +772,7 @@ function initMem() {
     const j = Math.floor(Math.random() * (i + 1));
     [icons[i], icons[j]] = [icons[j], icons[i]];
   }
-  memCards = icons;
-  memFirst = null; memLock = false; memMoves = 0; memMatched = 0;
+  memCards = icons; memFirst = null; memLock = false; memMoves = 0; memMatched = 0;
   setMsg('memMsg', '', '');
   renderMem();
 }
@@ -736,8 +782,7 @@ function renderMem() {
     const flipped = memFirst && memFirst.i === i;
     return `<div class="memCard ${flipped ? 'flip' : ''}" id="mc${i}" onclick="flipMem(${i})">${flipped ? ic : ''}</div>`;
   }).join('');
-  document.getElementById('memInfo').textContent =
-    memMatched === 8 ? '🎉 完成！' : `配对 ${memMatched}/8　步数 ${memMoves}`;
+  document.getElementById('memInfo').textContent = memMatched === 8 ? '🎉 完成！' : `配对 ${memMatched}/8　步数 ${memMoves}`;
 }
 
 function flipMem(i) {
@@ -745,29 +790,19 @@ function flipMem(i) {
   if (memFirst && memFirst.i === i) return;
   const el = document.getElementById('mc' + i);
   if (!el || el.classList.contains('done')) return;
-
-  el.classList.add('flip');
-  el.textContent = memCards[i];
-
+  el.classList.add('flip'); el.textContent = memCards[i];
   if (!memFirst) { memFirst = { i, ic: memCards[i] }; return; }
-
   memMoves++;
   if (memFirst.ic === memCards[i]) {
-    document.getElementById('mc' + memFirst.i).classList.add('done');
-    el.classList.add('done');
-    memMatched++;
-    memFirst = null;
-    renderMem();
+    document.getElementById('mc' + memFirst.i).classList.add('done'); el.classList.add('done');
+    memMatched++; memFirst = null; renderMem();
     if (memMatched === 8) {
       const score = Math.max(1, 200 - memMoves);
       reportScore('mem', score);
       setMsg('memMsg', `🎉 完成！${memMoves} 步`, 'win');
-    } else {
-      setMsg('memMsg', '✅ 配对成功', 'win');
-    }
+    } else setMsg('memMsg', '✅ 配对成功', 'win');
   } else {
-    memLock = true;
-    setMsg('memMsg', '❌ 不一样', 'high');
+    memLock = true; setMsg('memMsg', '❌ 不一样', 'high');
     const a = memFirst.i;
     setTimeout(() => {
       const ea = document.getElementById('mc' + a);
@@ -786,8 +821,7 @@ let tttState = { win: 0, lose: 0, draw: 0 };
 function setTTTDiff(d, el) {
   tttDiff = d;
   document.querySelectorAll('#tttPage .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  initTTT();
+  el.classList.add('active'); initTTT();
 }
 
 function initTTT() {
@@ -797,8 +831,7 @@ function initTTT() {
 }
 
 function renderTTTScore() {
-  document.getElementById('tttScore').textContent =
-    `胜 ${tttState.win}　负 ${tttState.lose}　平 ${tttState.draw}`;
+  document.getElementById('tttScore').textContent = `胜 ${tttState.win}　负 ${tttState.lose}　平 ${tttState.draw}`;
 }
 
 function renderTTT() {
@@ -809,16 +842,13 @@ function renderTTT() {
 
 function clickTTT(i) {
   if (tttOver || tttBoard[i]) return;
-  tttBoard[i] = 'X';
-  renderTTT();
+  tttBoard[i] = 'X'; renderTTT();
   if (checkTTT('X')) return;
   if (tttBoard.every(v => v)) return drawTTT();
-
   setTimeout(() => {
     const move = tttDiff === 'hard' ? bestMove('O') : randomMove();
     if (move === -1) return;
-    tttBoard[move] = 'O';
-    renderTTT();
+    tttBoard[move] = 'O'; renderTTT();
     if (checkTTT('O')) return;
     if (tttBoard.every(v => v)) drawTTT();
   }, 300);
@@ -879,16 +909,9 @@ function checkTTT(p) {
   const w = winner(tttBoard);
   if (!w) return false;
   tttOver = true;
-  if (w === 'X') {
-    tttState.win++;
-    setMsg('tttMsg', '🎉 你赢了！', 'win');
-    reportScore('ttt', tttState.win);
-  } else {
-    tttState.lose++;
-    setMsg('tttMsg', '😵 电脑赢了', 'high');
-  }
-  renderTTTScore();
-  return true;
+  if (w === 'X') { tttState.win++; setMsg('tttMsg', '🎉 你赢了！', 'win'); reportScore('ttt', tttState.win); }
+  else { tttState.lose++; setMsg('tttMsg', '😵 电脑赢了', 'high'); }
+  renderTTTScore(); return true;
 }
 
 function drawTTT() {
@@ -904,27 +927,21 @@ const HOLE_N = 9;
 function resetMole() {
   clearInterval(moleTimer); clearTimeout(moleSpawnTimer);
   molePlaying = false; moleTime = 30; moleScore = 0;
-  document.getElementById('holeGrid').innerHTML =
-    Array(HOLE_N).fill(0).map((_, i) =>
-      `<div class="hole" id="hole${i}" onclick="hitMole(${i})"></div>`).join('');
+  document.getElementById('holeGrid').innerHTML = Array(HOLE_N).fill(0).map((_, i) =>
+    `<div class="hole" id="hole${i}" onclick="hitMole(${i})"></div>`).join('');
   document.getElementById('moleScore').textContent = '得分 0　时间 30';
   setMsg('moleMsg', '', '');
-  const btn = document.getElementById('moleBtn');
-  btn.textContent = '开始'; btn.disabled = false;
+  const btn = document.getElementById('moleBtn'); btn.textContent = '开始'; btn.disabled = false;
 }
 
 function startMole() {
-  resetMole();
-  molePlaying = true;
-  const btn = document.getElementById('moleBtn');
-  btn.disabled = true; btn.textContent = '进行中…';
-
+  resetMole(); molePlaying = true;
+  const btn = document.getElementById('moleBtn'); btn.disabled = true; btn.textContent = '进行中…';
   moleTimer = setInterval(() => {
     moleTime--;
     document.getElementById('moleScore').textContent = `得分 ${moleScore}　时间 ${moleTime}`;
     if (moleTime <= 0) endMole();
-  }, 1000);
-  spawnMole();
+  }, 1000); spawnMole();
 }
 
 function spawnMole() {
@@ -943,8 +960,7 @@ function spawnMole() {
 function hitMole(i) {
   const el = document.getElementById('hole' + i);
   if (!el || !el.classList.contains('mole')) return;
-  el.classList.remove('mole');
-  moleScore++;
+  el.classList.remove('mole'); moleScore++;
   document.getElementById('moleScore').textContent = `得分 ${moleScore}　时间 ${moleTime}`;
 }
 
@@ -952,8 +968,7 @@ function endMole() {
   molePlaying = false;
   clearInterval(moleTimer); clearTimeout(moleSpawnTimer);
   document.querySelectorAll('.hole').forEach(h => h.classList.remove('mole'));
-  const btn = document.getElementById('moleBtn');
-  btn.disabled = false; btn.textContent = '再来一局';
+  const btn = document.getElementById('moleBtn'); btn.disabled = false; btn.textContent = '再来一局';
   setMsg('moleMsg', `游戏结束，得分 ${moleScore}`, '');
   if (moleScore > 0) reportScore('mole', moleScore);
 }
@@ -964,10 +979,8 @@ let touchStartX = 0, touchStartY = 0;
 
 function init2048() {
   g2048.board = Array(16).fill(0);
-  g2048.score = 0;
-  g2048.over = false;
-  addRandom2048();
-  addRandom2048();
+  g2048.score = 0; g2048.over = false;
+  addRandom2048(); addRandom2048();
   render2048();
   setMsg('g2048Msg', '开始！用方向键或滑动屏幕', '');
 }
@@ -981,11 +994,7 @@ function addRandom2048() {
 }
 
 function render2048() {
-  const colors = {
-    0: 'rgba(255,255,255,.05)', 2: '#eee4da', 4: '#ede0c8', 8: '#f2b179',
-    16: '#f59563', 32: '#f67c5f', 64: '#f65e3b', 128: '#edcf72', 256: '#edcc61',
-    512: '#edc850', 1024: '#edc53f', 2048: '#edc22e'
-  };
+  const colors = { 0: 'rgba(255,255,255,.05)', 2: '#eee4da', 4: '#ede0c8', 8: '#f2b179', 16: '#f59563', 32: '#f67c5f', 64: '#f65e3b', 128: '#edcf72', 256: '#edcc61', 512: '#edc850', 1024: '#edc53f', 2048: '#edc22e' };
   document.getElementById('g2048Board').innerHTML = g2048.board.map(v =>
     `<div style="display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;border-radius:8px;background:${colors[v] || '#edc22e'};color:${v <= 4 ? '#776e65' : '#fff'}">${v || ''}</div>`
   ).join('');
@@ -998,19 +1007,13 @@ function move2048(dir) {
   let rows = [];
   for (let i = 0; i < 4; i++) {
     let row = [];
-    for (let j = 0; j < 4; j++) {
-      row.push(g2048.board[i * 4 + j]);
-    }
+    for (let j = 0; j < 4; j++) row.push(g2048.board[i * 4 + j]);
     rows.push(row);
   }
   const merge = (row) => {
     let r = row.filter(v => v);
     for (let i = 0; i < r.length - 1; i++) {
-      if (r[i] === r[i + 1]) {
-        r[i] *= 2;
-        g2048.score += r[i];
-        r[i + 1] = 0;
-      }
+      if (r[i] === r[i + 1]) { r[i] *= 2; g2048.score += r[i]; r[i + 1] = 0; }
     }
     r = r.filter(v => v);
     while (r.length < 4) r.push(0);
@@ -1020,29 +1023,20 @@ function move2048(dir) {
   else if (dir === 'right') rows = rows.map(r => merge(r.reverse()).reverse());
   else if (dir === 'up') {
     for (let j = 0; j < 4; j++) {
-      let col = rows.map(r => r[j]);
-      col = merge(col);
+      let col = rows.map(r => r[j]); col = merge(col);
       rows.forEach((r, i) => r[j] = col[i]);
     }
   } else if (dir === 'down') {
     for (let j = 0; j < 4; j++) {
-      let col = rows.map(r => r[j]).reverse();
-      col = merge(col).reverse();
+      let col = rows.map(r => r[j]).reverse(); col = merge(col).reverse();
       rows.forEach((r, i) => r[j] = col[i]);
     }
   }
   for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) g2048.board[i * 4 + j] = rows[i][j];
   if (JSON.stringify(g2048.board) !== old) {
-    addRandom2048();
-    render2048();
-    if (g2048.score > g2048.best) {
-      g2048.best = g2048.score;
-      reportScore('game2048', g2048.best);
-    }
-    if (!canMove2048()) {
-      g2048.over = true;
-      setMsg('g2048Msg', '😵 游戏结束！得分 ' + g2048.score, 'high');
-    }
+    addRandom2048(); render2048();
+    if (g2048.score > g2048.best) { g2048.best = g2048.score; reportScore('game2048', g2048.best); }
+    if (!canMove2048()) { g2048.over = true; setMsg('g2048Msg', '😵 游戏结束！得分 ' + g2048.score, 'high'); }
   }
 }
 
@@ -1065,8 +1059,7 @@ document.addEventListener('keydown', e => {
 });
 
 document.getElementById('g2048Board').addEventListener('touchstart', e => {
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
+  touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
 }, { passive: true });
 
 document.getElementById('g2048Board').addEventListener('touchend', e => {
@@ -1086,17 +1079,12 @@ function setMsg(id, text, cls) {
   el.className = 'msg ' + (cls || '');
 }
 function esc(s) {
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 /* 回车 */
-document.getElementById('gInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') checkGuess();
-});
-document.getElementById('mInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') checkMath();
-});
+document.getElementById('gInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkGuess(); });
+document.getElementById('mInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkMath(); });
 
 /* ================= 启动 ================= */
 (async function init() {
