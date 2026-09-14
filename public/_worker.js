@@ -29,15 +29,18 @@ export default {
 
         // 注册
         if (path === '/api/register' && method === 'POST') {
-          const { username, password, nick } = body;
+          const { username, password, nick, securityQuestion, securityAnswer } = body;
           if (!username || username.length < 2 || username.length > 12) return Response.json({ error: '用户名需要 2-12 个字符' }, { status: 400 });
           if (!password || password.length < 4) return Response.json({ error: '密码至少 4 位' }, { status: 400 });
+          if (!securityQuestion || !securityAnswer) return Response.json({ error: '请填写密保问题和答案' }, { status: 400 });
           if (await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first()) return Response.json({ error: '用户名已存在' }, { status: 400 });
 
           const salt = crypto.randomUUID().replace(/-/g, '');
           const hash = await hashPwd(password, salt);
-          const info = await env.DB.prepare('INSERT INTO users (username, password_hash, salt, nick, created_at, visits) VALUES (?, ?, ?, ?, ?, 0)')
-            .bind(username, hash, salt, nick || username, Date.now()).run();
+          const ansHash = await hashPwd(securityAnswer.toLowerCase().trim(), salt);
+          
+          const info = await env.DB.prepare('INSERT INTO users (username, password_hash, salt, nick, security_question, security_answer, created_at, visits) VALUES (?, ?, ?, ?, ?, ?, ?, 0)')
+            .bind(username, hash, salt, nick || username, securityQuestion, ansHash, Date.now()).run();
 
           const userId = info.meta.last_row_id || info.last_row_id;
           const token = makeToken();
@@ -56,6 +59,36 @@ export default {
           return Response.json({ token, user: publicUser(user) });
         }
 
+        // 获取密保问题
+        if (path === '/api/forgot/question' && method === 'GET') {
+          const username = url.searchParams.get('username');
+          if (!username) return Response.json({ error: '请输入用户名' }, { status: 400 });
+          const user = await env.DB.prepare('SELECT security_question FROM users WHERE username = ?').bind(username).first();
+          if (!user) return Response.json({ error: '用户不存在' }, { status: 404 });
+          if (!user.security_question) return Response.json({ error: '该账号未设置密保问题，无法找回' }, { status: 400 });
+          return Response.json({ question: user.security_question });
+        }
+
+        // 重置密码
+        if (path === '/api/forgot/reset' && method === 'POST') {
+          const { username, answer, newPassword } = body;
+          if (!newPassword || newPassword.length < 4) return Response.json({ error: '新密码至少 4 位' }, { status: 400 });
+          const user = await env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(username).first();
+          if (!user) return Response.json({ error: '用户不存在' }, { status: 404 });
+          
+          const ansHash = await hashPwd(answer.toLowerCase().trim(), user.salt);
+          if (ansHash !== user.security_answer) return Response.json({ error: '密保答案不对' }, { status: 400 });
+          
+          const newSalt = crypto.randomUUID().replace(/-/g, '');
+          const newHash = await hashPwd(newPassword, newSalt);
+          await env.DB.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').bind(newHash, newSalt, user.id).run();
+          
+          // 强制退出该用户的所有登录状态
+          await env.DB.prepare('DELETE FROM tokens WHERE user_id = ?').bind(user.id).run();
+          
+          return Response.json({ ok: true, message: '密码重置成功，请重新登录' });
+        }
+
         // 需要登录的接口
         const user = await getAuthUser();
         if (!user) return Response.json({ error: '请先登录' }, { status: 401 });
@@ -70,16 +103,14 @@ export default {
           return Response.json({ user: publicUser(updated) });
         }
 
-        // 查看别人的主页 (新增)
+        // 查看别人的主页
         if (path.startsWith('/api/profile/') && method === 'GET') {
           const targetUsername = path.split('/')[3];
           const targetUser = await env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(targetUsername).first();
           if (!targetUser) return Response.json({ error: '用户不存在' }, { status: 404 });
           
-          // 访问量 +1
           await env.DB.prepare('UPDATE users SET visits = COALESCE(visits, 0) + 1 WHERE id = ?').bind(targetUser.id).run();
           
-          // 获取留言
           const msgs = await env.DB.prepare('SELECT * FROM messages WHERE receiver = ? ORDER BY created_at DESC LIMIT 50').bind(targetUsername).all();
           return Response.json({ 
             user: { ...publicUser(targetUser), visits: (targetUser.visits || 0) + 1 },
@@ -87,7 +118,7 @@ export default {
           });
         }
 
-        // 发送留言 (新增)
+        // 发送留言
         if (path === '/api/messages' && method === 'POST') {
           const { receiver, content } = body;
           if (!receiver || !content || !content.trim()) return Response.json({ error: '参数不对' }, { status: 400 });

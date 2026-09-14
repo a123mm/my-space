@@ -11,6 +11,7 @@ body{margin:0;min-height:100vh;padding:16px;font-family:system-ui,-apple-system,
 .screen{display:none}
 .screen.active{display:block;animation:fadeUp .3s ease}
 #authPage.active{display:flex;align-items:center;min-height:calc(100vh - 32px)}
+#forgotPage.active{display:block}
 @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 .card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:18px;margin-bottom:12px}
 .auth-card{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:26px 22px}
@@ -63,7 +64,7 @@ textarea::placeholder{color:rgba(255,255,255,.3)}
 .chips{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .chip{flex:1;min-width:80px;padding:10px 4px;font-size:13px;font-family:inherit;font-weight:600;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:rgba(255,255,255,.06);color:#cbd5e1;cursor:pointer}
 .chip.active{background:#6366f1;color:#fff;border-color:#6366f1}
-input[type=number],input[type=text]{width:100%;padding:14px;font-size:20px;text-align:center;border:1px solid rgba(255,255,255,.15);border-radius:12px;background:rgba(255,255,255,.08);color:#fff;outline:none;font-family:inherit;margin-bottom:10px}
+input[type=number],input[type=text],input[type=password]{width:100%;padding:14px;font-size:20px;text-align:center;border:1px solid rgba(255,255,255,.15);border-radius:12px;background:rgba(255,255,255,.08);color:#fff;outline:none;font-family:inherit;margin-bottom:10px}
 .big{font-size:46px;text-align:center;margin:6px 0;letter-spacing:6px}
 .vs{display:flex;justify-content:space-around;align-items:center;margin:6px 0}
 .score{text-align:center;font-size:14px;opacity:.85;margin-top:10px}
@@ -138,10 +139,53 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
           <label>昵称（可选）</label>
           <input id="inNick" type="text" placeholder="不填就用用户名" maxlength="12">
         </div>
+        <div class="field" id="securityField" style="display:none">
+          <label>密保问题（忘记密码时用）</label>
+          <input id="inSecQ" type="text" placeholder="比如：我最喜欢的颜色是什么？" maxlength="50">
+        </div>
+        <div class="field" id="securityAnsField" style="display:none">
+          <label>密保答案</label>
+          <input id="inSecA" type="text" placeholder="答案（不区分大小写）" maxlength="50">
+        </div>
         <div class="err" id="authErr"></div>
         <button class="btn" type="submit" id="authBtn">登录</button>
       </form>
+      <div style="text-align:right;margin-top:-10px;margin-bottom:16px">
+        <a href="javascript:void(0)" onclick="showForgot()" style="color:#818cf8;font-size:13px;text-decoration:none">忘记密码？</a>
+      </div>
       <div class="tip" style="font-size:11px;opacity:.4;text-align:center;margin-top:16px;line-height:1.6">密码加密存储在 Cloudflare D1 数据库</div>
+    </div>
+  </section>
+
+  <!-- 忘记密码 -->
+  <section id="forgotPage" class="screen">
+    <div class="auth-card">
+      <div class="logo">🔐</div>
+      <h1>找回密码</h1>
+      <p class="sub">输入用户名，回答密保问题</p>
+      <div class="field">
+        <label>用户名</label>
+        <input id="forgotUser" type="text" placeholder="你的用户名" maxlength="12">
+      </div>
+      <button class="btn" onclick="loadSecurityQuestion()" id="forgotBtn1">下一步</button>
+      <div id="forgotStep2" style="display:none;margin-top:16px">
+        <div class="field">
+          <label>密保问题</label>
+          <div id="forgotQuestion" style="padding:12px;background:rgba(255,255,255,.06);border-radius:12px;font-size:14px;margin-bottom:12px"></div>
+        </div>
+        <div class="field">
+          <label>密保答案</label>
+          <input id="forgotAnswer" type="text" placeholder="你的答案">
+        </div>
+        <div class="field">
+          <label>新密码</label>
+          <input id="forgotNewPwd" type="password" placeholder="至少 4 位">
+        </div>
+        <button class="btn green" onclick="resetPassword()">重置密码</button>
+      </div>
+      <div class="err" id="forgotErr"></div>
+      <div class="hint" id="forgotHint"></div>
+      <button class="btn ghost" style="margin-top:16px" onclick="show('authPage')">← 返回登录</button>
     </div>
   </section>
 
@@ -418,15 +462,18 @@ function setTheme(name) {
   renderThemePicker();
 }
 
-/* ================= 登录 ================= */
+/* ================= 登录/注册 ================= */
 let mode = 'login';
 
 document.querySelectorAll('.tab').forEach(t => {
   t.onclick = () => {
     mode = t.dataset.tab;
     document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
-    document.getElementById('nickField').style.display = mode === 'register' ? 'block' : 'none';
-    document.getElementById('authBtn').textContent = mode === 'register' ? '注册并进入' : '登录';
+    const isReg = mode === 'register';
+    document.getElementById('nickField').style.display = isReg ? 'block' : 'none';
+    document.getElementById('securityField').style.display = isReg ? 'block' : 'none';
+    document.getElementById('securityAnsField').style.display = isReg ? 'block' : 'none';
+    document.getElementById('authBtn').textContent = isReg ? '注册并进入' : '登录';
     document.getElementById('authErr').textContent = '';
   };
 });
@@ -436,11 +483,15 @@ document.getElementById('authForm').onsubmit = async e => {
   const u = document.getElementById('inUser').value.trim();
   const p = document.getElementById('inPass').value;
   const n = document.getElementById('inNick').value.trim();
+  const secQ = document.getElementById('inSecQ').value.trim();
+  const secA = document.getElementById('inSecA').value.trim();
   const err = document.getElementById('authErr');
   err.textContent = '';
 
   try {
-    const body = mode === 'register' ? { username: u, password: p, nick: n } : { username: u, password: p };
+    const body = mode === 'register' 
+      ? { username: u, password: p, nick: n, securityQuestion: secQ, securityAnswer: secA } 
+      : { username: u, password: p };
     const path = mode === 'register' ? '/api/register' : '/api/login';
     const data = await api(path, { method: 'POST', body: JSON.stringify(body) });
     token = data.token;
@@ -452,6 +503,56 @@ document.getElementById('authForm').onsubmit = async e => {
     err.textContent = ex.message;
   }
 };
+
+/* ================= 忘记密码逻辑 ================= */
+function showForgot() {
+  show('forgotPage');
+  document.getElementById('forgotUser').value = '';
+  document.getElementById('forgotStep2').style.display = 'none';
+  document.getElementById('forgotBtn1').style.display = 'block';
+  document.getElementById('forgotErr').textContent = '';
+  document.getElementById('forgotHint').textContent = '';
+}
+
+async function loadSecurityQuestion() {
+  const u = document.getElementById('forgotUser').value.trim();
+  const err = document.getElementById('forgotErr');
+  err.textContent = '';
+  if (!u) { err.textContent = '请输入用户名'; return; }
+  
+  try {
+    const d = await api('/api/forgot/question?username=' + encodeURIComponent(u));
+    document.getElementById('forgotQuestion').textContent = d.question;
+    document.getElementById('forgotStep2').style.display = 'block';
+    document.getElementById('forgotBtn1').style.display = 'none';
+  } catch (e) {
+    err.textContent = e.message;
+  }
+}
+
+async function resetPassword() {
+  const u = document.getElementById('forgotUser').value.trim();
+  const ans = document.getElementById('forgotAnswer').value.trim();
+  const np = document.getElementById('forgotNewPwd').value;
+  const err = document.getElementById('forgotErr');
+  const hint = document.getElementById('forgotHint');
+  err.textContent = '';
+  hint.textContent = '';
+  
+  if (!ans) { err.textContent = '请输入密保答案'; return; }
+  if (!np || np.length < 4) { err.textContent = '新密码至少 4 位'; return; }
+  
+  try {
+    const d = await api('/api/forgot/reset', {
+      method: 'POST',
+      body: JSON.stringify({ username: u, answer: ans, newPassword: np })
+    });
+    hint.textContent = '✅ ' + d.message;
+    setTimeout(() => { show('authPage'); }, 1500);
+  } catch (e) {
+    err.textContent = e.message;
+  }
+}
 
 /* ================= 主页 ================= */
 async function enterProfile() {
@@ -1146,15 +1247,11 @@ function initSnake() {
     if (!snakePlaying) return;
     const head = { x: snake[0].x + snakeDirObj.x, y: snake[0].y + snakeDirObj.y };
     
-    // 撞墙
     if (head.x < 0 || head.x >= SNAKE_SIZE || head.y < 0 || head.y >= SNAKE_SIZE) {
-      endSnake();
-      return;
+      endSnake(); return;
     }
-    // 撞自己
     if (snake.some(s => s.x === head.x && s.y === head.y)) {
-      endSnake();
-      return;
+      endSnake(); return;
     }
     
     snake.unshift(head);
@@ -1200,7 +1297,6 @@ function snakeDir(dir) {
   if (!snakePlaying) return;
   const dirs = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
   const d = dirs[dir];
-  // 不能反向
   if (d.x === -snakeDirObj.x && d.y === -snakeDirObj.y) return;
   snakeDirObj = d;
 }
@@ -1239,10 +1335,8 @@ function initMine() {
   document.getElementById('mineModeBtn').textContent = '🖱️ 翻开模式';
   document.getElementById('mineModeBtn').classList.add('active');
   
-  // 初始化空板
   mineBoard = Array(MINE_SIZE).fill(0).map(() => Array(MINE_SIZE).fill(0).map(() => ({ mine: false, revealed: false, flagged: false, count: 0 })));
   
-  // 布雷
   let placed = 0;
   while (placed < MINE_COUNT) {
     const r = Math.floor(Math.random() * MINE_SIZE);
@@ -1253,7 +1347,6 @@ function initMine() {
     }
   }
   
-  // 计算周围雷数
   for (let r = 0; r < MINE_SIZE; r++) {
     for (let c = 0; c < MINE_SIZE; c++) {
       if (mineBoard[r][c].mine) continue;
