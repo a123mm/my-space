@@ -486,6 +486,20 @@ canvas{max-width:100%;margin:12px auto;border-radius:12px;background:rgba(255,25
       <div class="info" style="font-size:12px">手机滑动屏幕移动挡板，电脑端用左右方向键</div>
     </div>
   </section>
+  
+  <!-- 中国象棋 -->
+<section id="chessPage" class="screen">
+  <button class="back" onclick="openGames()">← 返回大厅</button>
+  <div class="card" style="text-align:center">
+    <div class="info" id="chessInfo">红方先行</div>
+    <div id="chessBoard" style="display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(10,1fr);gap:2px;max-width:340px;margin:12px auto;aspect-ratio:9/10;background:#d4a373;padding:8px;border-radius:8px;user-select:none"></div>
+    <div class="chips">
+      <button class="chip active" onclick="initChess()">重新开始</button>
+    </div>
+    <div id="chessMsg" class="msg"></div>
+    <div class="info" style="font-size:12px">点击棋子选中，再点击目标格子移动。红方先走，两人轮流点。</div>
+  </div>
+</section>
 
 </div>
 
@@ -732,9 +746,9 @@ const GAMES = [
   { id: 'gomoku', icon: '⚫', name: '五子棋', desc: '简单/困难 AI' },
   { id: 'tetris', icon: '🧱', name: '俄罗斯方块', desc: '消除方块最高分' },
   { id: 'tank', icon: '🚀', name: '坦克大战', desc: '保卫基地' },
-  { id: 'breakout', icon: '🧱', name: '打砖块', desc: '击碎所有砖块' }
+  { id: 'breakout', icon: '🧱', name: '打砖块', desc: '击碎所有砖块' },
+  { id: 'chess', icon: '♟️', name: '中国象棋', desc: '本地双人对战' }
 ];
-
 function openGames() {
   renderGames();
   show('gamesPage');
@@ -773,6 +787,7 @@ function openGame(id) {
   if (id === 'tetris') initTetris();
   if (id === 'tank') initTank();
   if (id === 'breakout') initBreakout();
+  if (id === 'chess') initChess();
 }
 
 /* ================= 排行榜 ================= */
@@ -2089,6 +2104,170 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') { breakoutPaddle.x = Math.max(0, breakoutPaddle.x - 20); e.preventDefault(); }
   if (e.key === 'ArrowRight') { breakoutPaddle.x = Math.min(320 - breakoutPaddle.w, breakoutPaddle.x + 20); e.preventDefault(); }
 });
+
+/* ================= 中国象棋 ================= */
+const CHESS_ROWS = 10, CHESS_COLS = 9;
+let chessBoard = [], chessTurn = 'red', chessSelected = null, chessOver = false;
+
+function initChess() {
+  chessTurn = 'red';
+  chessSelected = null;
+  chessOver = false;
+  const setup = [
+    ['b_ju','b_ma','b_xiang','b_shi','b_jiang','b_shi','b_xiang','b_ma','b_ju'],
+    [null,null,null,null,null,null,null,null,null],
+    [null,'b_pao',null,null,null,null,null,'b_pao',null],
+    ['b_zu',null,'b_zu',null,'b_zu',null,'b_zu',null,'b_zu'],
+    [null,null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null,null],
+    ['r_bing',null,'r_bing',null,'r_bing',null,'r_bing',null,'r_bing'],
+    [null,'r_pao',null,null,null,null,null,'r_pao',null],
+    [null,null,null,null,null,null,null,null,null],
+    ['r_ju','r_ma','r_xiang','r_shi','r_jiang','r_shi','r_xiang','r_ma','r_ju']
+  ];
+  chessBoard = setup.map(row => [...row]);
+  renderChess();
+  setMsg('chessMsg', '红方先行，请走棋', '');
+}
+
+function renderChess() {
+  const board = document.getElementById('chessBoard');
+  const names = {
+    'ju':'車', 'ma':'馬', 'xiang':'相', 'shi':'仕', 'jiang':'帥', 'pao':'炮', 'bing':'兵',
+    'b_ju':'車', 'b_ma':'馬', 'b_xiang':'象', 'b_shi':'士', 'b_jiang':'將', 'b_pao':'砲', 'b_zu':'卒'
+  };
+  let html = '';
+  for (let r = 0; r < CHESS_ROWS; r++) {
+    for (let c = 0; c < CHESS_COLS; c++) {
+      const piece = chessBoard[r][c];
+      const isSelected = chessSelected && chessSelected.r === r && chessSelected.c === c;
+      let bg = 'rgba(255,255,255,.1)';
+      let text = '';
+      let color = '';
+      
+      if (piece) {
+        text = names[piece] || '?';
+        bg = piece.startsWith('r') ? '#fee2e2' : '#1e293b';
+        color = piece.startsWith('r') ? '#dc2626' : '#f8fafc';
+      }
+      if (isSelected) bg = '#facc15';
+      
+      const border = (r === 4 || r === 5) && c === 4 ? '2px solid #6366f1' : '1px solid rgba(0,0,0,.2)';
+      
+      html += `<div style="background:${bg};border:${border};border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:bold;color:${color};cursor:pointer" onclick="clickChess(${r},${c})">${text}</div>`;
+    }
+  }
+  board.innerHTML = html;
+  document.getElementById('chessInfo').textContent = chessOver ? '游戏结束' : (chessTurn === 'red' ? '轮到红方' : '轮到黑方');
+}
+
+function clickChess(r, c) {
+  if (chessOver) return;
+  const piece = chessBoard[r][c];
+  
+  if (chessSelected) {
+    if (isValidMove(chessSelected.r, chessSelected.c, r, c)) {
+      const captured = chessBoard[r][c];
+      chessBoard[r][c] = chessBoard[chessSelected.r][chessSelected.c];
+      chessBoard[chessSelected.r][chessSelected.c] = null;
+      chessSelected = null;
+      
+      if (captured === 'b_jiang' || captured === 'r_jiang') {
+        chessOver = true;
+        const winner = captured === 'b_jiang' ? '红方' : '黑方';
+        setMsg('chessMsg', `🎉 ${winner}获胜！`, 'win');
+        renderChess();
+        reportScore('chess', 100);
+        return;
+      }
+      
+      chessTurn = chessTurn === 'red' ? 'black' : 'red';
+      renderChess();
+      setMsg('chessMsg', chessTurn === 'red' ? '轮到红方' : '轮到黑方', '');
+    } else {
+      chessSelected = null;
+      renderChess();
+    }
+  } else {
+    if (piece) {
+      if (chessTurn === 'red' && !piece.startsWith('r')) return setMsg('chessMsg', '现在是红方走棋', 'high');
+      if (chessTurn === 'black' && !piece.startsWith('b')) return setMsg('chessMsg', '现在是黑方走棋', 'high');
+      chessSelected = { r, c };
+      renderChess();
+    }
+  }
+}
+
+function isValidMove(fr, fc, tr, tc) {
+  if (fr === tr && fc === tc) return false;
+  const piece = chessBoard[fr][fc];
+  const target = chessBoard[tr][tc];
+  if (!piece) return false;
+  if (target && target[0] === piece[0]) return false;
+
+  const type = piece.slice(2);
+  const dr = tr - fr, dc = tc - fc;
+  const absDr = Math.abs(dr), absDc = Math.abs(dc);
+
+  if (tr < 0 || tr >= CHESS_ROWS || tc < 0 || tc >= CHESS_COLS) return false;
+
+  switch (type) {
+    case 'ju':
+      if (dr !== 0 && dc !== 0) return false;
+      return countPieces(fr, fc, tr, tc) === 0;
+    case 'ma':
+      if (!((absDr === 2 && absDc === 1) || (absDr === 1 && absDc === 2))) return false;
+      const horseR = fr + (absDr === 2 ? (dr > 0 ? 1 : -1) : 0);
+      const horseC = fc + (absDc === 2 ? (dc > 0 ? 1 : -1) : 0);
+      return chessBoard[horseR][horseC] === null;
+    case 'xiang':
+      if (absDr !== 2 || absDc !== 2) return false;
+      if (piece.startsWith('r') && tr < 5) return false;
+      if (piece.startsWith('b') && tr > 4) return false;
+      return chessBoard[fr + dr/2][fc + dc/2] === null;
+    case 'shi':
+      if (absDr !== 1 || absDc !== 1) return false;
+      if (tc < 3 || tc > 5) return false;
+      if (piece.startsWith('r') && (tr < 7 || tr > 9)) return false;
+      if (piece.startsWith('b') && (tr < 0 || tr > 2)) return false;
+      return true;
+    case 'jiang':
+      if (absDr + absDc !== 1) return false;
+      if (tc < 3 || tc > 5) return false;
+      if (piece.startsWith('r') && (tr < 7 || tr > 9)) return false;
+      if (piece.startsWith('b') && (tr < 0 || tr > 2)) return false;
+      return true;
+    case 'pao':
+      if (dr !== 0 && dc !== 0) return false;
+      const count = countPieces(fr, fc, tr, tc);
+      if (target) return count === 1;
+      return count === 0;
+    case 'bing':
+      if (piece.startsWith('r')) {
+        if (tr > fr) return false;
+        if (fr >= 5 && dc !== 0) return false;
+        if (fr < 5 && absDr + absDc !== 1) return false;
+      } else {
+        if (tr < fr) return false;
+        if (fr <= 4 && dc !== 0) return false;
+        if (fr > 4 && absDr + absDc !== 1) return false;
+      }
+      return true;
+  }
+  return false;
+}
+
+function countPieces(fr, fc, tr, tc) {
+  let count = 0;
+  if (fr === tr) {
+    const min = Math.min(fc, tc), max = Math.max(fc, tc);
+    for (let c = min + 1; c < max; c++) if (chessBoard[fr][c]) count++;
+  } else {
+    const min = Math.min(fr, tr), max = Math.max(fr, tr);
+    for (let r = min + 1; r < max; r++) if (chessBoard[r][fc]) count++;
+  }
+  return count;
+}
 
 /* ================= 工具 ================= */
 function setMsg(id, text, cls) {
