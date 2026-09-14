@@ -1422,7 +1422,7 @@ document.getElementById('snakeBoard').addEventListener('touchend', e => {
 
 /* ================= 扫雷 ================= */
 const MINE_SIZE = 9;
-const MINE_COUNT = 10;
+const MINE_COUNT = 8;
 let mineBoard = [], mineRevealedCount = 0, mineFlags = 0, minePlaying = false, mineMode = 'reveal';
 
 function initMine() {
@@ -1819,18 +1819,25 @@ document.addEventListener('keydown', e => {
 let tankCanvas, tankCtx;
 let tankPlayer = { x: 144, y: 280, size: 32, dir: 'up' };
 let tankEnemies = [], tankBullets = [], tankScore = 0, tankPlaying = false, tankTimer = null;
-let tankKeys = {};
+let tankLives = 3; // 💡 新增：3条命
+let tankInvincible = false; // 💡 新增：无敌状态
+let tankInvincibleTimer = null;
 
 function initTank() {
   clearInterval(tankTimer);
+  clearTimeout(tankInvincibleTimer);
   tankCanvas = document.getElementById('tankCanvas');
   tankCtx = tankCanvas.getContext('2d');
   tankPlayer = { x: 144, y: 280, size: 32, dir: 'up' };
   tankEnemies = [];
   tankBullets = [];
   tankScore = 0;
+  tankLives = 3;
+  tankInvincible = false;
   tankPlaying = true;
-  document.getElementById('tankInfo').textContent = `得分：${tankScore}`;
+  
+  // 显示生命值
+  document.getElementById('tankInfo').textContent = `得分：0　生命：❤️❤️❤️`;
   setMsg('tankMsg', '开始！保卫基地', '');
   
   tankTimer = setInterval(() => {
@@ -1839,10 +1846,10 @@ function initTank() {
     drawTank();
   }, 50);
   
-  // 定期生成敌人
+  // 定期生成敌人（最多2个，生成更慢）
   const spawnTimer = setInterval(() => {
     if (!tankPlaying) { clearInterval(spawnTimer); return; }
-    if (tankEnemies.length < 5) {
+    if (tankEnemies.length < 2) { // 💡 敌人从 5 个减到 2 个
       tankEnemies.push({
         x: Math.floor(Math.random() * 8) * 32 + 16,
         y: 20,
@@ -1851,13 +1858,13 @@ function initTank() {
         shootCooldown: 0
       });
     }
-  }, 2000);
+  }, 3500); // 💡 生成间隔变长
 }
 
 function tankMove(dir) {
   if (!tankPlaying) return;
   tankPlayer.dir = dir;
-  const speed = 8;
+  const speed = 10; // 稍微快一点点
   if (dir === 'up') tankPlayer.y = Math.max(0, tankPlayer.y - speed);
   if (dir === 'down') tankPlayer.y = Math.min(320 - tankPlayer.size, tankPlayer.y + speed);
   if (dir === 'left') tankPlayer.x = Math.max(0, tankPlayer.x - speed);
@@ -1870,8 +1877,8 @@ function tankShoot() {
   tankBullets.push({
     x: tankPlayer.x + tankPlayer.size / 2,
     y: tankPlayer.y + tankPlayer.size / 2,
-    dx: tankPlayer.dir === 'left' ? -6 : tankPlayer.dir === 'right' ? 6 : 0,
-    dy: tankPlayer.dir === 'up' ? -6 : tankPlayer.dir === 'down' ? 6 : 0,
+    dx: tankPlayer.dir === 'left' ? -8 : tankPlayer.dir === 'right' ? 8 : 0,
+    dy: tankPlayer.dir === 'up' ? -8 : tankPlayer.dir === 'down' ? 8 : 0,
     from: 'player'
   });
 }
@@ -1883,24 +1890,23 @@ function updateTank() {
     if (b.x < 0 || b.x > 320 || b.y < 0 || b.y > 320) tankBullets.splice(i, 1);
   });
   
-  // 敌人移动和射击
-  tankEnemies.forEach((e, i) => {
-    // 简单 AI：向玩家移动，射击
+  // 敌人移动和射击（大幅削弱）
+  tankEnemies.forEach((e) => {
     if (e.shootCooldown > 0) e.shootCooldown--;
     else {
-      e.shootCooldown = 60 + Math.random() * 60;
-      tankBullets.push({ x: e.x + e.size/2, y: e.y + e.size/2, dx: 0, dy: 5, from: 'enemy' });
+      e.shootCooldown = 150 + Math.random() * 100; // 💡 敌人开火极慢
+      // 💡 敌人子弹速度从 5 降到 1.5
+      tankBullets.push({ x: e.x + e.size/2, y: e.y + e.size/2, dx: 0, dy: 1.5, from: 'enemy' });
     }
-    // 随机移动
-    if (Math.random() < 0.05) {
-      e.x += (Math.random() - 0.5) * 6;
+    if (Math.random() < 0.02) { // 移动概率变低
+      e.x += (Math.random() - 0.5) * 4;
       e.x = Math.max(0, Math.min(320 - e.size, e.x));
     }
-    e.y += 0.5;
+    e.y += 0.2; // 移动速度极慢
     if (e.y > 320 - e.size) e.y = 20;
   });
   
-  // 碰撞检测：玩家子弹 vs 敌人
+  // 玩家子弹 vs 敌人
   tankBullets.forEach((b, bi) => {
     if (b.from !== 'player') return;
     tankEnemies.forEach((e, ei) => {
@@ -1908,19 +1914,34 @@ function updateTank() {
         tankEnemies.splice(ei, 1);
         tankBullets.splice(bi, 1);
         tankScore += 10;
-        document.getElementById('tankInfo').textContent = `得分：${tankScore}`;
+        document.getElementById('tankInfo').textContent = `得分：${tankScore}　生命：${'❤️'.repeat(tankLives)}`;
       }
     });
   });
   
-  // 碰撞检测：敌人子弹 vs 玩家
+  // 敌人子弹 vs 玩家（扣命逻辑）
   tankBullets.forEach((b, bi) => {
     if (b.from !== 'enemy') return;
     if (b.x > tankPlayer.x && b.x < tankPlayer.x + tankPlayer.size && b.y > tankPlayer.y && b.y < tankPlayer.y + tankPlayer.size) {
-      tankPlaying = false;
-      setMsg('tankMsg', `😵 被击中！得分 ${tankScore}`, 'high');
-      clearInterval(tankTimer);
-      if (tankScore > 0) reportScore('tank', tankScore);
+      if (tankInvincible) return; // 无敌状态免疫伤害
+      
+      tankBullets.splice(bi, 1);
+      tankLives--;
+      if (tankLives > 0) {
+        document.getElementById('tankInfo').textContent = `得分：${tankScore}　生命：${'❤️'.repeat(tankLives)}`;
+        setMsg('tankMsg', `💥 受伤了！剩余生命 ${tankLives}`, 'high');
+        
+        // 复活并进入 2 秒无敌状态
+        tankPlayer.x = 144; tankPlayer.y = 280; 
+        tankInvincible = true;
+        clearTimeout(tankInvincibleTimer);
+        tankInvincibleTimer = setTimeout(() => { tankInvincible = false; }, 2000);
+      } else {
+        tankPlaying = false;
+        setMsg('tankMsg', `😵 游戏结束！得分 ${tankScore}`, 'high');
+        clearInterval(tankTimer);
+        if (tankScore > 0) reportScore('tank', tankScore);
+      }
     }
   });
 }
@@ -1929,13 +1950,15 @@ function drawTank() {
   if (!tankCtx) return;
   tankCtx.clearRect(0, 0, 320, 320);
   
-  // 画玩家
-  tankCtx.fillStyle = '#4ade80';
-  tankCtx.fillRect(tankPlayer.x, tankPlayer.y, tankPlayer.size, tankPlayer.size);
-  tankCtx.fillStyle = '#fff';
-  tankCtx.font = '20px Arial';
-  tankCtx.textAlign = 'center';
-  tankCtx.fillText('▲', tankPlayer.x + 16, tankPlayer.y + 24);
+  // 画玩家（无敌时闪烁）
+  if (!tankInvincible || Math.floor(Date.now() / 100) % 2 === 0) {
+    tankCtx.fillStyle = '#4ade80';
+    tankCtx.fillRect(tankPlayer.x, tankPlayer.y, tankPlayer.size, tankPlayer.size);
+    tankCtx.fillStyle = '#fff';
+    tankCtx.font = '20px Arial';
+    tankCtx.textAlign = 'center';
+    tankCtx.fillText('▲', tankPlayer.x + 16, tankPlayer.y + 24);
+  }
   
   // 画敌人
   tankEnemies.forEach(e => {
