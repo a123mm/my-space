@@ -497,7 +497,7 @@ canvas{max-width:100%;margin:12px auto;border-radius:12px;background:rgba(255,25
       <button class="chip active" onclick="initChess()">重新开始</button>
     </div>
     <div id="chessMsg" class="msg"></div>
-    <div class="info" style="font-size:12px">点击棋子选中，再点击目标格子移动。红方先走，两人轮流点。</div>
+    <div class="info" style="font-size:12px">点击棋子选中，再点击目标格子移动。红方先走。<br>口诀：马走日，象走田，车走直路，炮隔山打牛。</div>
   </div>
 </section>
 
@@ -2166,6 +2166,13 @@ function clickChess(r, c) {
   const piece = chessBoard[r][c];
   
   if (chessSelected) {
+    // 💡 如果点的是自己的另一个棋子，直接切换选中，不用点两次
+    if (piece && piece[0] === chessBoard[chessSelected.r][chessSelected.c][0]) {
+      chessSelected = { r, c };
+      renderChess();
+      return;
+    }
+    
     if (isValidMove(chessSelected.r, chessSelected.c, r, c)) {
       const captured = chessBoard[r][c];
       chessBoard[r][c] = chessBoard[chessSelected.r][chessSelected.c];
@@ -2185,6 +2192,8 @@ function clickChess(r, c) {
       renderChess();
       setMsg('chessMsg', chessTurn === 'red' ? '轮到红方' : '轮到黑方', '');
     } else {
+      // 💡 走不到的地方，给个明确提示
+      setMsg('chessMsg', '❌ 不能走到那里！', 'high');
       chessSelected = null;
       renderChess();
     }
@@ -2232,11 +2241,15 @@ function isValidMove(fr, fc, tr, tc) {
       if (piece.startsWith('b') && (tr < 0 || tr > 2)) return false;
       return true;
     case 'jiang':
-      if (absDr + absDc !== 1) return false;
-      if (tc < 3 || tc > 5) return false;
-      if (piece.startsWith('r') && (tr < 7 || tr > 9)) return false;
-      if (piece.startsWith('b') && (tr < 0 || tr > 2)) return false;
-      return true;
+  // 💡 飞将：如果同一列，中间无子，可以吃对方的将
+  if (dc === 0 && countPieces(fr, fc, tr, tc) === 0 && target === (piece.startsWith('r') ? 'b_jiang' : 'r_jiang')) {
+    return true;
+  }
+  if (absDr + absDc !== 1) return false;
+  if (tc < 3 || tc > 5) return false;
+  if (piece.startsWith('r') && (tr < 7 || tr > 9)) return false;
+  if (piece.startsWith('b') && (tr < 0 || tr > 2)) return false;
+  return true;
     case 'pao':
       if (dr !== 0 && dc !== 0) return false;
       const count = countPieces(fr, fc, tr, tc);
