@@ -85,6 +85,23 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
 .hole.mole::after{content:"🐹";position:absolute;animation:pop .15s ease-out}
 @keyframes pop{from{transform:translateY(60%) scale(.5);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
 #g2048Board{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:320px;margin:12px auto;background:rgba(255,255,255,.1);padding:10px;border-radius:12px;aspect-ratio:1;user-select:none}
+#snakeBoard{display:grid;grid-template-columns:repeat(15,1fr);gap:2px;max-width:320px;margin:12px auto;aspect-ratio:1;background:rgba(255,255,255,.05);border-radius:12px;padding:6px;user-select:none}
+.snake-cell{background:rgba(255,255,255,.05);border-radius:3px}
+.snake-cell.snake{background:#4ade80}
+.snake-cell.head{background:#22c55e;border-radius:50%}
+.snake-cell.food{background:#f87171;border-radius:50%}
+.dpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:180px;margin:10px auto}
+.dpad button{padding:12px;font-size:18px;border:none;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
+.dpad button:active{background:#6366f1}
+#mineBoard{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;max-width:320px;margin:12px auto;aspect-ratio:1;background:rgba(255,255,255,.05);border-radius:12px;padding:6px;user-select:none}
+.mine-cell{background:rgba(255,255,255,.12);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;cursor:pointer;color:#fff}
+.mine-cell.revealed{background:rgba(255,255,255,.03);cursor:default;color:#cbd5e1}
+.mine-cell.flagged{background:rgba(250,204,21,.2);color:#facc15}
+.mine-cell.mine{background:#dc2626}
+.mine-cell.count-1{color:#60a5fa}.mine-cell.count-2{color:#4ade80}.mine-cell.count-3{color:#f87171}.mine-cell.count-4{color:#a855f7}
+.mine-cell.count-5{color:#f97316}.mine-cell.count-6{color:#06b6d4}.mine-cell.count-7{color:#ec4899}.mine-cell.count-8{color:#ef4444}
+#gomokuBoard{display:grid;grid-template-columns:repeat(15,1fr);gap:1px;max-width:340px;margin:12px auto;aspect-ratio:1;background:#d4a373;padding:6px;border-radius:8px;user-select:none}
+#tetrisBoard{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;max-width:260px;margin:12px auto;aspect-ratio:0.5;background:rgba(255,255,255,.05);border-radius:8px;padding:6px;user-select:none}
 .board-row{display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:8px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:13px}
 .board-row.me{border-color:#6366f1;background:rgba(99,102,241,.12)}
 .board-rank{font-size:18px;font-weight:700;min-width:36px;text-align:center}
@@ -95,23 +112,6 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
 .theme-chips{display:flex;flex-wrap:wrap;gap:8px}
 .theme-chip{padding:8px 14px;font-size:13px;font-family:inherit;font-weight:600;border:1px solid rgba(255,255,255,.2);border-radius:20px;background:rgba(255,255,255,.06);color:#cbd5e1;cursor:pointer}
 .theme-chip.active{background:#6366f1;color:#fff;border-color:#6366f1}
-/* 贪吃蛇 */
-#snakeBoard{display:grid;grid-template-columns:repeat(15,1fr);gap:2px;max-width:320px;margin:12px auto;aspect-ratio:1;background:rgba(255,255,255,.05);border-radius:12px;padding:6px;user-select:none}
-.snake-cell{background:rgba(255,255,255,.05);border-radius:3px}
-.snake-cell.snake{background:#4ade80}
-.snake-cell.head{background:#22c55e;border-radius:50%}
-.snake-cell.food{background:#f87171;border-radius:50%}
-.dpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:180px;margin:10px auto}
-.dpad button{padding:12px;font-size:18px;border:none;border-radius:10px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}
-.dpad button:active{background:#6366f1}
-/* 扫雷 */
-#mineBoard{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;max-width:320px;margin:12px auto;aspect-ratio:1;background:rgba(255,255,255,.05);border-radius:12px;padding:6px;user-select:none}
-.mine-cell{background:rgba(255,255,255,.12);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;cursor:pointer;color:#fff}
-.mine-cell.revealed{background:rgba(255,255,255,.03);cursor:default;color:#cbd5e1}
-.mine-cell.flagged{background:rgba(250,204,21,.2);color:#facc15}
-.mine-cell.mine{background:#dc2626}
-.mine-cell.count-1{color:#60a5fa}.mine-cell.count-2{color:#4ade80}.mine-cell.count-3{color:#f87171}.mine-cell.count-4{color:#a855f7}
-.mine-cell.count-5{color:#f97316}.mine-cell.count-6{color:#06b6d4}.mine-cell.count-7{color:#ec4899}.mine-cell.count-8{color:#ef4444}
 </style>
 </head>
 <body>
@@ -421,6 +421,37 @@ ul.wheel li.on{background:#6366f1;border-color:#818cf8;transform:scale(1.04);fon
     </div>
   </section>
 
+  <!-- 五子棋 -->
+  <section id="gomokuPage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card" style="text-align:center">
+      <div class="info" id="gomokuInfo">你执黑先行，五子连珠即胜</div>
+      <div id="gomokuBoard"></div>
+      <div class="chips">
+        <button class="chip active" onclick="initGomoku()">重新开始</button>
+      </div>
+      <div id="gomokuMsg" class="msg"></div>
+    </div>
+  </section>
+
+  <!-- 俄罗斯方块 -->
+  <section id="tetrisPage" class="screen">
+    <button class="back" onclick="openGames()">← 返回大厅</button>
+    <div class="card" style="text-align:center">
+      <div class="info" id="tetrisInfo">得分：0　最高：0</div>
+      <div id="tetrisBoard"></div>
+      <div class="dpad">
+        <div></div><button onclick="tetrisRotate()">🔄</button><div></div>
+        <button onclick="tetrisMove('left')">←</button>
+        <button onclick="tetrisMove('down')">↓</button>
+        <button onclick="tetrisMove('right')">→</button>
+      </div>
+      <button class="btn" onclick="initTetris()">重新开始</button>
+      <div id="tetrisMsg" class="msg"></div>
+      <div class="info" style="font-size:12px">电脑端用方向键，手机端点下方按钮</div>
+    </div>
+  </section>
+
 </div>
 
 <script>
@@ -662,7 +693,9 @@ const GAMES = [
   { id: 'mole',  icon: '🐹', name: '打地鼠', desc: '最高得分' },
   { id: 'game2048', icon: '🔢', name: '2048', desc: '合并数字最高分' },
   { id: 'snake', icon: '🐍', name: '贪吃蛇', desc: '吃食物最高分' },
-  { id: 'mine', icon: '💣', name: '扫雷', desc: '胜利越快分越高' }
+  { id: 'mine', icon: '💣', name: '扫雷', desc: '胜利越快分越高' },
+  { id: 'gomoku', icon: '⚫', name: '五子棋', desc: '和电脑对战' },
+  { id: 'tetris', icon: '🧱', name: '俄罗斯方块', desc: '消除方块最高分' }
 ];
 
 function openGames() {
@@ -699,6 +732,8 @@ function openGame(id) {
   if (id === 'rps') updateRPSScore();
   if (id === 'snake') initSnake();
   if (id === 'mine') initMine();
+  if (id === 'gomoku') initGomoku();
+  if (id === 'tetris') initTetris();
 }
 
 /* ================= 排行榜 ================= */
@@ -1474,6 +1509,218 @@ function checkMineWin() {
     reportScore('mine', 1000);
   }
 }
+
+/* ================= 五子棋 ================= */
+const GOMOKU_SIZE = 15;
+let gomokuBoard = [], gomokuOver = false;
+
+function initGomoku() {
+  gomokuBoard = Array(GOMOKU_SIZE).fill(0).map(() => Array(GOMOKU_SIZE).fill(null));
+  gomokuOver = false;
+  renderGomoku();
+  setMsg('gomokuMsg', '你执黑先行，五子连珠即胜', '');
+}
+
+function renderGomoku() {
+  const board = document.getElementById('gomokuBoard');
+  let html = '';
+  for (let r = 0; r < GOMOKU_SIZE; r++) {
+    for (let c = 0; c < GOMOKU_SIZE; c++) {
+      const cell = gomokuBoard[r][c];
+      const color = cell === 'black' ? '#1a1a1a' : cell === 'white' ? '#f0f0f0' : 'rgba(0,0,0,.1)';
+      const radius = cell ? '50%' : '2px';
+      html += `<div style="background:${color};border-radius:${radius};cursor:pointer" onclick="clickGomoku(${r},${c})"></div>`;
+    }
+  }
+  board.innerHTML = html;
+}
+
+function clickGomoku(r, c) {
+  if (gomokuOver || gomokuBoard[r][c]) return;
+  gomokuBoard[r][c] = 'black';
+  renderGomoku();
+  if (checkGomoku('black')) return;
+  setTimeout(aiGomoku, 300);
+}
+
+function aiGomoku() {
+  if (gomokuOver) return;
+  let bestMove = null, bestScore = -1;
+  for (let r = 0; r < GOMOKU_SIZE; r++) {
+    for (let c = 0; c < GOMOKU_SIZE; c++) {
+      if (gomokuBoard[r][c]) continue;
+      let score = 0;
+      for (let dr = -2; dr <= 2; dr++) {
+        for (let dc = -2; dc <= 2; dc++) {
+          const nr = r + dr, nc = c + dc;
+          if (nr >= 0 && nr < GOMOKU_SIZE && nc >= 0 && nc < GOMOKU_SIZE && gomokuBoard[nr][nc]) score++;
+        }
+      }
+      if (score > bestScore) { bestScore = score; bestMove = { r, c }; }
+    }
+  }
+  if (bestMove) {
+    gomokuBoard[bestMove.r][bestMove.c] = 'white';
+    renderGomoku();
+    if (checkGomoku('white')) return;
+  }
+}
+
+function checkGomoku(color) {
+  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+  for (let r = 0; r < GOMOKU_SIZE; r++) {
+    for (let c = 0; c < GOMOKU_SIZE; c++) {
+      if (gomokuBoard[r][c] !== color) continue;
+      for (const [dr, dc] of dirs) {
+        let count = 1;
+        for (let step = 1; step < 5; step++) {
+          const nr = r + dr * step, nc = c + dc * step;
+          if (nr < 0 || nr >= GOMOKU_SIZE || nc < 0 || nc >= GOMOKU_SIZE || gomokuBoard[nr][nc] !== color) break;
+          count++;
+        }
+        if (count >= 5) {
+          gomokuOver = true;
+          if (color === 'black') {
+            setMsg('gomokuMsg', '🎉 你赢了！', 'win');
+            reportScore('gomoku', 100);
+          } else {
+            setMsg('gomokuMsg', '😵 电脑赢了', 'high');
+          }
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+/* ================= 俄罗斯方块 ================= */
+const TETRIS_W = 10, TETRIS_H = 20;
+let tetrisGrid = [], tetrisPiece = null, tetrisTimer = null, tetrisScore = 0, tetrisBest = 0, tetrisPlaying = false;
+const TETRIS_SHAPES = [
+  [[1,1,1,1]], [[1,1],[1,1]], [[0,1,0],[1,1,1]],
+  [[1,0,0],[1,1,1]], [[0,0,1],[1,1,1]], [[0,1,1],[1,1,0]], [[1,1,0],[0,1,1]]
+];
+
+function initTetris() {
+  clearInterval(tetrisTimer);
+  tetrisGrid = Array(TETRIS_H).fill(0).map(() => Array(TETRIS_W).fill(0));
+  tetrisScore = 0;
+  tetrisPlaying = true;
+  tetrisPiece = spawnTetris();
+  renderTetris();
+  setMsg('tetrisMsg', '开始！', '');
+  document.getElementById('tetrisInfo').textContent = `得分：${tetrisScore}　最高：${tetrisBest}`;
+  tetrisTimer = setInterval(() => {
+    if (!tetrisPlaying || !tetrisPiece) return;
+    if (canTetrisMove(0, 1)) { tetrisPiece.y++; renderTetris(); } else { lockTetris(); }
+  }, 500);
+}
+
+function spawnTetris() {
+  const shape = TETRIS_SHAPES[Math.floor(Math.random() * TETRIS_SHAPES.length)];
+  return { shape, x: Math.floor((TETRIS_W - shape[0].length) / 2), y: 0 };
+}
+
+function canTetrisMove(dx, dy) {
+  if (!tetrisPiece) return false;
+  const { shape, x, y } = tetrisPiece;
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[0].length; c++) {
+      if (!shape[r][c]) continue;
+      const nx = x + c + dx, ny = y + r + dy;
+      if (nx < 0 || nx >= TETRIS_W || ny >= TETRIS_H) return false;
+      if (ny >= 0 && tetrisGrid[ny][nx]) return false;
+    }
+  }
+  return true;
+}
+
+function lockTetris() {
+  const { shape, x, y } = tetrisPiece;
+  for (let r = 0; r < shape.length; r++) {
+    for (let c = 0; c < shape[0].length; c++) {
+      if (shape[r][c]) {
+        if (y + r < 0) { endTetris(); return; }
+        tetrisGrid[y + r][x + c] = 1;
+      }
+    }
+  }
+  let lines = 0;
+  for (let r = TETRIS_H - 1; r >= 0; r--) {
+    if (tetrisGrid[r].every(v => v)) {
+      tetrisGrid.splice(r, 1);
+      tetrisGrid.unshift(Array(TETRIS_W).fill(0));
+      lines++;
+      r++;
+    }
+  }
+  if (lines > 0) {
+    tetrisScore += lines * 10;
+    if (tetrisScore > tetrisBest) tetrisBest = tetrisScore;
+    document.getElementById('tetrisInfo').textContent = `得分：${tetrisScore}　最高：${tetrisBest}`;
+  }
+  tetrisPiece = spawnTetris();
+  if (!canTetrisMove(0, 0)) endTetris();
+}
+
+function renderTetris() {
+  const board = document.getElementById('tetrisBoard');
+  let html = '';
+  const display = tetrisGrid.map(row => [...row]);
+  if (tetrisPiece) {
+    const { shape, x, y } = tetrisPiece;
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[0].length; c++) {
+        if (shape[r][c] && y + r >= 0) display[y + r][x + c] = 2;
+      }
+    }
+  }
+  for (let r = 0; r < TETRIS_H; r++) {
+    for (let c = 0; c < TETRIS_W; c++) {
+      let color = 'rgba(255,255,255,.05)';
+      if (display[r][c] === 1) color = '#6366f1';
+      if (display[r][c] === 2) color = '#f87171';
+      html += `<div style="background:${color};border-radius:2px"></div>`;
+    }
+  }
+  board.innerHTML = html;
+}
+
+function tetrisMove(dir) {
+  if (!tetrisPlaying || !tetrisPiece) return;
+  if (dir === 'left' && canTetrisMove(-1, 0)) { tetrisPiece.x--; renderTetris(); }
+  if (dir === 'right' && canTetrisMove(1, 0)) { tetrisPiece.x++; renderTetris(); }
+  if (dir === 'down') {
+    if (canTetrisMove(0, 1)) { tetrisPiece.y++; renderTetris(); }
+    else lockTetris();
+  }
+}
+
+function tetrisRotate() {
+  if (!tetrisPlaying || !tetrisPiece) return;
+  const { shape } = tetrisPiece;
+  const rotated = shape[0].map((_, i) => shape.map(row => row[i]).reverse());
+  const oldShape = tetrisPiece.shape;
+  tetrisPiece.shape = rotated;
+  if (!canTetrisMove(0, 0)) tetrisPiece.shape = oldShape;
+  else renderTetris();
+}
+
+function endTetris() {
+  tetrisPlaying = false;
+  clearInterval(tetrisTimer);
+  setMsg('tetrisMsg', `😵 游戏结束！得分 ${tetrisScore}`, 'high');
+  if (tetrisScore > 0) reportScore('tetris', tetrisScore);
+}
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('tetrisPage').classList.contains('active')) return;
+  if (e.key === 'ArrowLeft') { tetrisMove('left'); e.preventDefault(); }
+  if (e.key === 'ArrowRight') { tetrisMove('right'); e.preventDefault(); }
+  if (e.key === 'ArrowDown') { tetrisMove('down'); e.preventDefault(); }
+  if (e.key === 'ArrowUp') { tetrisRotate(); e.preventDefault(); }
+});
 
 /* ================= 工具 ================= */
 function setMsg(id, text, cls) {
