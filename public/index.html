@@ -2214,7 +2214,8 @@ function isValidMove(fr, fc, tr, tc) {
   if (!piece) return false;
   if (target && target[0] === piece[0]) return false;
 
-  const type = piece.slice(2);
+  let type = piece.slice(2);
+if (type === 'zu') type = 'bing';  // 💡 把黑方的卒统一按兵来处理
   const dr = tr - fr, dc = tc - fc;
   const absDr = Math.abs(dr), absDc = Math.abs(dc);
 
