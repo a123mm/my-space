@@ -2212,12 +2212,15 @@ function isValidMove(fr, fc, tr, tc) {
   const piece = chessBoard[fr][fc];
   const target = chessBoard[tr][tc];
   if (!piece) return false;
-  if (target && target[0] === piece[0]) return false;
+  if (target && target[0] === piece[0]) return false; // 不能吃自己的棋子
 
   let type = piece.slice(2);
-if (type === 'zu') type = 'bing';  // 💡 把黑方的卒统一按兵来处理
+  // 💡 统一红兵(bing)和黑卒(zu)的类型
+  if (type === 'bing' || type === 'zu') type = 'pawn';
+
   const dr = tr - fr, dc = tc - fc;
   const absDr = Math.abs(dr), absDc = Math.abs(dc);
+  const isRed = piece.startsWith('r');
 
   if (tr < 0 || tr >= CHESS_ROWS || tc < 0 || tc >= CHESS_COLS) return false;
 
@@ -2225,48 +2228,67 @@ if (type === 'zu') type = 'bing';  // 💡 把黑方的卒统一按兵来处理
     case 'ju':
       if (dr !== 0 && dc !== 0) return false;
       return countPieces(fr, fc, tr, tc) === 0;
-    case 'ma':
+
+    case 'ma': {
       if (!((absDr === 2 && absDc === 1) || (absDr === 1 && absDc === 2))) return false;
-      const horseR = fr + (absDr === 2 ? (dr > 0 ? 1 : -1) : 0);
-      const horseC = fc + (absDc === 2 ? (dc > 0 ? 1 : -1) : 0);
-      return chessBoard[horseR][horseC] === null;
+      const legR = fr + (absDr === 2 ? (dr > 0 ? 1 : -1) : 0);
+      const legC = fc + (absDc === 2 ? (dc > 0 ? 1 : -1) : 0);
+      return chessBoard[legR][legC] === null;
+    }
+
     case 'xiang':
       if (absDr !== 2 || absDc !== 2) return false;
-      if (piece.startsWith('r') && tr < 5) return false;
-      if (piece.startsWith('b') && tr > 4) return false;
-      return chessBoard[fr + dr/2][fc + dc/2] === null;
+      if (isRed && tr < 5) return false;
+      if (!isRed && tr > 4) return false;
+      return chessBoard[fr + dr / 2][fc + dc / 2] === null;
+
     case 'shi':
       if (absDr !== 1 || absDc !== 1) return false;
       if (tc < 3 || tc > 5) return false;
-      if (piece.startsWith('r') && (tr < 7 || tr > 9)) return false;
-      if (piece.startsWith('b') && (tr < 0 || tr > 2)) return false;
+      if (isRed && (tr < 7 || tr > 9)) return false;
+      if (!isRed && (tr < 0 || tr > 2)) return false;
       return true;
-    case 'jiang':
-  // 💡 飞将：如果同一列，中间无子，可以吃对方的将
-  if (dc === 0 && countPieces(fr, fc, tr, tc) === 0 && target === (piece.startsWith('r') ? 'b_jiang' : 'r_jiang')) {
-    return true;
-  }
-  if (absDr + absDc !== 1) return false;
-  if (tc < 3 || tc > 5) return false;
-  if (piece.startsWith('r') && (tr < 7 || tr > 9)) return false;
-  if (piece.startsWith('b') && (tr < 0 || tr > 2)) return false;
-  return true;
-    case 'pao':
-      if (dr !== 0 && dc !== 0) return false;
-      const count = countPieces(fr, fc, tr, tc);
-      if (target) return count === 1;
-      return count === 0;
-    case 'bing':
-      if (piece.startsWith('r')) {
-        if (tr > fr) return false;
-        if (fr >= 5 && dc !== 0) return false;
-        if (fr < 5 && absDr + absDc !== 1) return false;
-      } else {
-        if (tr < fr) return false;
-        if (fr <= 4 && dc !== 0) return false;
-        if (fr > 4 && absDr + absDc !== 1) return false;
+
+    case 'jiang': {
+      // 💡 飞将：同一列、中间无子、目标是对方将帅
+      if (dc === 0 && countPieces(fr, fc, tr, tc) === 0) {
+        if (target === (isRed ? 'b_jiang' : 'r_jiang')) return true;
       }
+      if (absDr + absDc !== 1) return false;
+      if (tc < 3 || tc > 5) return false;
+      if (isRed && (tr < 7 || tr > 9)) return false;
+      if (!isRed && (tr < 0 || tr > 2)) return false;
       return true;
+    }
+
+    case 'pao': {
+      if (dr !== 0 && dc !== 0) return false;
+      const cnt = countPieces(fr, fc, tr, tc);
+      if (target) return cnt === 1;  // 吃子：中间必须隔一个
+      return cnt === 0;              // 移动：中间不能有子
+    }
+
+    case 'pawn': {
+      if (isRed) {
+        // 红兵：向上走（r 减小）
+        if (dr > 0) return false;
+        if (fr >= 5) {
+          // 未过河（红方在下半盘），只能向前
+          return dc === 0 && dr === -1;
+        } else {
+          // 已过河，可以向前或左右
+          return (dr === -1 && dc === 0) || (dr === 0 && Math.abs(dc) === 1);
+        }
+      } else {
+        // 黑卒：向下走（r 增大）
+        if (dr < 0) return false;
+        if (fr <= 4) {
+          return dc === 0 && dr === 1;
+        } else {
+          return (dr === 1 && dc === 0) || (dr === 0 && Math.abs(dc) === 1);
+        }
+      }
+    }
   }
   return false;
 }
