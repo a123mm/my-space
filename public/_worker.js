@@ -83,7 +83,6 @@ export default {
           const newHash = await hashPwd(newPassword, newSalt);
           await env.DB.prepare('UPDATE users SET password_hash = ?, salt = ? WHERE id = ?').bind(newHash, newSalt, user.id).run();
           
-          // 强制退出该用户的所有登录状态
           await env.DB.prepare('DELETE FROM tokens WHERE user_id = ?').bind(user.id).run();
           
           return Response.json({ ok: true, message: '密码重置成功，请重新登录' });
@@ -155,6 +154,20 @@ export default {
             return { username: u.username, nick: u.nick, avatar: u.avatar, visits: u.visits || 0, total, games: sc };
           }).sort((a, b) => b.total - a.total).slice(0, 20);
           return Response.json({ list });
+        }
+
+        // 注销账户
+        if (path === '/api/delete-account' && method === 'POST') {
+          // 删除用户
+          await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
+          // 删除该用户的 Token
+          await env.DB.prepare('DELETE FROM tokens WHERE user_id = ?').bind(user.id).run();
+          // 删除该用户的游戏分数
+          await env.DB.prepare('DELETE FROM scores WHERE user_id = ?').bind(user.id).run();
+          // 删除该用户发送和接收的所有留言
+          await env.DB.prepare('DELETE FROM messages WHERE sender = ? OR receiver = ?').bind(user.username, user.username).run();
+          
+          return Response.json({ ok: true, message: '账户已成功注销' });
         }
 
         if (path === '/api/logout' && method === 'POST') {
