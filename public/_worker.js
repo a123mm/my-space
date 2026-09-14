@@ -170,6 +170,73 @@ export default {
           return Response.json({ ok: true, message: '账户已成功注销' });
         }
 
+                // 查询签到状态
+        if (path === '/api/signin/status' && method === 'GET') {
+          const today = new Date().toISOString().slice(0, 10);
+          const todayRow = await env.DB.prepare(
+            'SELECT 1 FROM signins WHERE user_id = ? AND date = ?'
+          ).bind(user.id, today).first();
+          const totalRow = await env.DB.prepare(
+            'SELECT COUNT(*) as cnt FROM signins WHERE user_id = ?'
+          ).bind(user.id).first();
+          const total = totalRow?.cnt || 0;
+
+          // 计算连续天数
+          let streak = 0;
+          if (total > 0) {
+            const dates = await env.DB.prepare(
+              'SELECT date FROM signins WHERE user_id = ? ORDER BY date DESC LIMIT 30'
+            ).bind(user.id).all();
+            const list = dates.results.map(r => r.date);
+            let check = new Date();
+            const todayStr = check.toISOString().slice(0, 10);
+            if (!list.includes(todayStr)) {
+              check.setDate(check.getDate() - 1);
+            }
+            for (let i = 0; i < 30; i++) {
+              const d = check.toISOString().slice(0, 10);
+              if (list.includes(d)) {
+                streak++;
+                check.setDate(check.getDate() - 1);
+              } else {
+                break;
+              }
+            }
+          }
+
+          return Response.json({ signed: !!todayRow, total, streak });
+        }
+
+        // 签到
+        if (path === '/api/signin' && method === 'POST') {
+          const today = new Date().toISOString().slice(0, 10);
+          const exists = await env.DB.prepare(
+            'SELECT 1 FROM signins WHERE user_id = ? AND date = ?'
+          ).bind(user.id, today).first();
+
+          if (exists) {
+            return Response.json({ error: '今天已经签过啦！' }, { status: 400 });
+          }
+
+          await env.DB.prepare(
+            'INSERT INTO signins (user_id, date, created_at) VALUES (?, ?, ?)'
+          ).bind(user.id, today, Date.now()).run();
+
+          // 把签到积分累加到 scores 表（每条签到 = 10 分）
+          const totalRow = await env.DB.prepare(
+            'SELECT COUNT(*) as cnt FROM signins WHERE user_id = ?'
+          ).bind(user.id).first();
+          const total = totalRow?.cnt || 0;
+          const points = total * 10;
+
+          await env.DB.prepare(`
+            INSERT INTO scores (user_id, game, score) VALUES (?, 'signin', ?)
+            ON CONFLICT(user_id, game) DO UPDATE SET score = excluded.score
+          `).bind(user.id, points).run();
+
+          return Response.json({ ok: true, points, total });
+        }
+
         if (path === '/api/logout' && method === 'POST') {
           const h = request.headers.get('Authorization') || '';
           const token = h.startsWith('Bearer ') ? h.slice(7) : null;

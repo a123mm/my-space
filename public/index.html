@@ -218,9 +218,19 @@ canvas{max-width:100%;margin:12px auto;border-radius:12px;background:rgba(255,25
       <div class="theme-chips" id="themePicker"></div>
     </div>
     <div class="card">
-      <div class="card-title">📊 我的数据</div>
-      <div class="stats" id="pStats"></div>
-    </div>
+  <div class="card-title">📊 我的数据</div>
+  <div class="stats" id="pStats"></div>
+</div>
+
+<div class="card">
+  <div class="card-title">📅 每日签到</div>
+  <div class="stats" id="signinStats">
+    <div class="stat"><b id="signinStreak">0</b><span>连续天数</span></div>
+    <div class="stat"><b id="signinTotal">0</b><span>累计签到</span></div>
+  </div>
+  <button class="btn green" style="margin-top:12px" id="signinBtn" onclick="doSignin()">签到 +10 分</button>
+  <div class="hint" id="signinHint"></div>
+</div>
     <button class="btn green" onclick="openGames()">🎮 进入游戏大厅</button>
     <button class="btn yellow" style="margin-top:10px" onclick="openBoard()">🏆 排行榜</button>
     
@@ -678,7 +688,8 @@ async function enterProfile() {
   renderAvatars();
   renderThemePicker();
   renderStats();
-  show('profilePage');
+await loadSigninStatus();
+show('profilePage');
 }
 
 const AVATARS = ['🐱','🐶','🦊','🐼','🐯','🦁','🐸','🐧','🦄','🐲','👾','🤖','😎','🥷','🐙','🎃'];
@@ -2319,6 +2330,39 @@ function esc(s) {
 document.getElementById('gInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkGuess(); });
 document.getElementById('mInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkMath(); });
 
+/* ================= 签到 ================= */
+async function loadSigninStatus() {
+  try {
+    const d = await api('/api/signin/status');
+    document.getElementById('signinStreak').textContent = d.streak;
+    document.getElementById('signinTotal').textContent = d.total;
+    const btn = document.getElementById('signinBtn');
+    if (d.signed) {
+      btn.textContent = '✅ 今日已签到';
+      btn.disabled = true;
+      btn.classList.add('ghost');
+      btn.classList.remove('green');
+    } else {
+      btn.textContent = '签到 +10 分';
+      btn.disabled = false;
+      btn.classList.remove('ghost');
+      btn.classList.add('green');
+    }
+  } catch (e) {
+    console.error('加载签到状态失败', e);
+  }
+}
+
+async function doSignin() {
+  try {
+    const d = await api('/api/signin', { method: 'POST' });
+    setMsg('signinHint', '🎉 签到成功！+10 分', 'win');
+    await loadSigninStatus();
+  } catch (e) {
+    setMsg('signinHint', e.message, 'high');
+  }
+}
+
 /* ================= 启动 ================= */
 (async function init() {
   setTheme(localStorage.getItem('theme') || '默认紫');
@@ -2335,5 +2379,3 @@ document.getElementById('mInput').addEventListener('keydown', e => { if (e.key =
   show('authPage');
 })();
 </script>
-</body>
-</html>
