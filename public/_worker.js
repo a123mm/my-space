@@ -53,7 +53,7 @@ export default {
         if (path === '/api/login' && method === 'POST') {
           const { username, password } = body;
           const user = await env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(username).first();
-          if (!user || hashPwd(password, user.salt) !== user.password_hash) return Response.json({ error: '账号或密码不对' }, { status: 400 });
+          if (!user || await hashPwd(password, user.salt) !== user.password_hash) return Response.json({ error: '账号或密码不对' }, { status: 400 });
           const token = makeToken();
           await env.DB.prepare('INSERT INTO tokens (token, user_id) VALUES (?, ?)').bind(token, user.id).run();
           return Response.json({ token, user: publicUser(user) });
